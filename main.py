@@ -60,7 +60,7 @@ if True:
 
     username = 'test'
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI"])
 
     try: 
         USER_ID = dynamo_manager.get_item({"username": username})['Item']['username']
@@ -245,9 +245,12 @@ if True:
     
     with tab4:
         st.write("COMING SOON")
-        
 
     with tab5:
+        st.write("COMING SOON")
+
+
+    with tab6:
         list_contents=s3_client.list_items(username)
         for content in list_contents:
             st.header(s3_client.read_metadata(content['Key'], 'name').replace(username+"/", ''))
