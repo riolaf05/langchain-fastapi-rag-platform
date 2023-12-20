@@ -1,0 +1,43 @@
+name: tldr-ci
+
+on:
+  workflow_dispatch: 
+  push:
+        
+jobs:
+  generate_tag:
+    #see: https://medium.com/@schmidphilipp1995/set-up-a-ci-cd-pipeline-for-your-webapp-on-aws-with-github-actions-within-5-minutes-810b10749833
+    name: tldr ci
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    # Here we are configuring build matrix that allows you to perform certain operations on your code
+    # with different software/Operating system configurations.
+    # In our case, we are only running it for Node v12.*. but you can multiple entries in that array.
+    strategy:
+      matrix:
+        node-version: [12.x]
+      
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # As you can see below we are using matrix.node-version => it means it will execute for all possible combinations
+      # provided matrix keys array(in our case only one kye => node-version)
+      - uses: actions/checkout@master
+
+      - name: Generate release tag
+        uses: amitsingh-007/next-release-tag@v2.2.0
+        with:
+          github_token: ${{ secrets.REPO_GITHUB_TOKEN }}
+        if: github.ref_name == 'master'
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.release_tag }}
+          release_name: Release ${{ env.release_tag }}
+        if: github.ref_name == 'master'

@@ -1,0 +1,17 @@
+venv/
+**.env
+*.jpg
+*.png
+**.terraform
+**.terragrunt-cache
+config.yaml
+id_rsa
+**package/
+**.zip
+__pycache__
+id_rsa
+**.mp3
+**.mp4
+**layer/
+**test/
+**.venv/

@@ -1,0 +1,675 @@
+import logging
+import requests
+import json
+import time
+import boto3
+import os
+import io
+import openai
+from dotenv import load_dotenv
+from langchain.prompts import PromptTemplate
+from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import LLMChain, SimpleSequentialChain
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+from langchain.chains.summarize import load_summarize_chain
+from urllib.request import urlopen
+import spacy
+import numpy as np
+import random
+
+load_dotenv()
+
+class NotionAPI:
+    def __init__(self, api_key):
+        self.base_url = "https://api.notion.com/v1/"
+        self.headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Notion-Version": "2022-06-28",
+        }
+
+    def creteDatabase(self, root, title):
+        '''
+        Creates a full page database on a parent page
+        '''
+        createUrl = self.base_url + "databases"
+        newDatabaseData = {   
+            "parent": {
+                "type": "page_id",
+                "page_id": root,
+            },
+            "title": [
+                {
+                    "type": "text",
+                    "text": {
+                        "content": title,
+                    }
+                }
+            ],
+            "properties": {
+                "Name": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": title
+                            }
+                        }
+                        ],
+                },
+            }
+        }
+        
+        res = requests.request("POST", createUrl, headers=self.headers, data=json.dumps(newDatabaseData))
+        data = res.json()
+        # print(res.status_code)
+        print(res.text)
+
+        return data
+
+    def filterResponse(self, json_object):
+        '''
+        Create a new json with only the properties we need
+        '''
+        filtered_json = {}
+        filtered_json['results'] = []
+        #mock root data
+        filtered_json['results'].append({
+            "id": "7235d5ae-6a34-4308-a600-4fe8414b23d0",
+            "parentId": "#",
+            "name": "Root",
+            "type": "directory"
+        })
+        for result in json_object['results']:
+            filtered_result = {}
+            filtered_result['id'] = result['id']
+            filtered_result['parentId'] = result['parent']['database_id']
+            filtered_result['url'] = result['url']
+            filtered_result['name'] = result['properties']['Name']['title'][0]['plain_text']
+            filtered_result['type'] = "file" #TODO: change
+            filtered_json['results'].append(filtered_result)
+        return filtered_json
+    
+    def getPage(self, page_id):
+        readUrl = f"https://api.notion.com/v1/pages/{page_id}"
+
+        res = requests.request("GET", readUrl, headers=self.headers)
+        data = res.json()
+        # print(res.status_code)
+        # print(res.text)
+
+        # with open('./db.json', 'w', encoding='utf8') as f:
+        #     json.dump(data, f, ensure_ascii=False)
+
+        #filter data
+        # filtered_data = self.filterResponse(data)
+
+        return data
+    
+    def getPageContent(self, page_id):
+        readUrl = f"https://api.notion.com/v1/blocks/{page_id}/children"
+
+        res = requests.request("GET", readUrl, headers=self.headers)
+        data = res.json()
+
+        return data['results'][0]['paragraph']['rich_text'][0]['text']['content']
+
+    def createPage(self, database_id, title, content):
+        '''
+        Create a page inside a database
+        '''
+        createUrl = 'https://api.notion.com/v1/pages'
+        newPageData = {
+            "parent": { "database_id": database_id },
+            "properties": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": title
+                            }
+                        }
+                    ]
+                },
+            "children": [
+                {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{ "type": "text", "text": { "content": content } }]
+                }
+                }
+            ]
+        }
+        data = json.dumps(newPageData)
+        
+        res = requests.request("POST", createUrl, headers=self.headers, data=data)
+        json_res = json.loads(res.text)
+        print(json_res)
+        return json_res
+    
+    def updatePage(self, pageId, new_title, new_content):
+        
+        readUrl = f"https://api.notion.com/v1/blocks/{pageId}/children"
+        res = requests.request("GET", readUrl, headers=self.headers)
+        page=res.json()
+
+        #TODO: AL MOMENTO QUESTA API APPENDE UN NUOVO BLOCCO, NON SOSTITUISCE IL VECCHIO
+        new_block = {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{ "type": "text", "text": { "content": new_content } }]
+                }
+            }
+
+        response = requests.patch(readUrl, headers=self.headers, json={"children": [new_block]})
+
+        print(response.status_code)
+        print(response.text)
+        
+# SQS
+def send_msg(message, queue_url):
+
+    # Crea un'istanza del client SQS
+    sqs = boto3.client('sqs', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+
+    # URL del topic SQS
+    queue_url = queue_url
+
+    # Invia un messaggio al topic
+    response = sqs.send_message(
+        QueueUrl=queue_url,
+        MessageBody=message
+    )
+
+    # Stampa l'ID del messaggio inviato
+    print(f"Message ID: {response['MessageId']}")
+
+def receive_msg(queue_url):
+    # Crea un'istanza del client SQS
+    sqs = boto3.client('sqs', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+
+    # URL del topic SQS
+    queue_url = queue_url
+
+    # Riceve un messaggio dal topic
+    response = sqs.receive_message(
+        QueueUrl=queue_url,
+        MaxNumberOfMessages=1,
+        VisibilityTimeout=0,
+        WaitTimeSeconds=0
+    )
+
+    try:
+
+    # Stampa il messaggio ricevuto
+        print(response['Messages'][0]['Body'])
+
+        # Elimina il messaggio ricevuto dal topic
+        sqs.delete_message(
+            QueueUrl=queue_url,
+            ReceiptHandle=response['Messages'][0]['ReceiptHandle']
+        )
+
+        return response['Messages'][0]['Body']
+
+    except KeyError:
+        print("No messages on queue")
+        return None
+    
+# OpenAI
+class OpenAIClient:
+
+    def __init__(self, api_key):
+           
+        self.api_key=api_key
+        self.model_engine = "text-davinci-003"
+        self.max_tokens = 1024
+        self.temperature = 0.5
+        self.stop = None
+        self.n = 1
+        openai.api_key = self.api_key
+    
+
+    def sendToOpenAI(self, prompt):
+
+        completion = openai.Completion.create(
+                engine=self.model_engine,
+                prompt=prompt,
+                max_tokens=self.max_tokens,
+                n=self.n,
+                stop=self.stop,
+                temperature=self.temperature,
+            )
+        response = completion.choices[0].text
+
+        return response
+
+# AWS Texttract
+class AWSTexttract:
+
+    def __init__(self):
+        self.client = boto3.client('textract', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+
+    def get_text(self, file_path):
+        
+        if type(file_path) == str:
+            #cioè se passo il path del file
+            with open(file_path, 'rb') as file:
+                img_test = file.read()
+                bytes_test = bytearray(img_test)
+                print('Image loaded', file_path)
+            response = self.client.detect_document_text(Document={'Bytes': bytes_test})
+        else:
+            #se passo il formato PIL
+            buf = io.BytesIO()
+            file_path.save(buf, format='JPEG')
+            byte_im = buf.getvalue()
+            response = self.client.detect_document_text(Document={'Bytes': byte_im})
+
+        text = ''
+        for item in response["Blocks"]:
+            if item["BlockType"] == "LINE":
+                text += item["Text"] + '\n'
+
+        return text
+    
+# AWS Transcribe
+class AWSTranscribe:
+    
+        def __init__(self, job_uri):
+            self.transcribe = boto3.client('transcribe', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+            self.job_verification = False
+            self.job_uri=job_uri
+
+        def generate_job_name(self):
+            return "chatgpt_summary_"+str(time.time_ns())+"_"+str(random.randint(0,500))
+
+        def check_job_name(self, job_name):
+            """
+            Check if the transcribe job name is existed or not
+            """
+            self.job_verification = True
+            # all the transcriptions
+            existed_jobs = self.transcribe.list_transcription_jobs()
+            for job in existed_jobs['TranscriptionJobSummaries']:
+                if job_name == job['TranscriptionJobName']:
+                    self.job_verification = False
+                break
+            # if job_verification == False:
+            #     command = input(job_name + " has existed. \nDo you want to override the existed job (Y/N): ")   
+            #     if command.lower() == "y" or command.lower() == "yes":                
+            #         self.transcribe.delete_transcription_job(TranscriptionJobName=job_name)
+                # elif command.lower() == "n" or command.lower() == "no":      
+                #     job_name = input("Insert new job name? ")      
+                #     self.check_job_name(job_name)
+                # else:
+                #     print("Input can only be (Y/N)")
+                #     command = input(job_name + " has existed. \nDo you want to override the existed job (Y/N): ")
+            return job_name
+    
+        def amazon_transcribe(self, job_uri, job_name, audio_file_name, language):
+            """
+            For single speaker
+            """
+            # Usually, I put like this to automate the process with the file name
+            # "s3://bucket_name" + audio_file_name  
+            # Usually, file names have spaces and have the file extension like .mp3
+            # we take only a file name and delete all the space to name the job
+            job_name = job_name
+            job_uri=self.job_uri+audio_file_name
+            # file format  
+            file_format = audio_file_name.split('.')[-1]
+            
+            # check if name is taken or not
+            job_name = self.check_job_name(job_name)
+            self.transcribe.start_transcription_job(
+                TranscriptionJobName=job_name,
+                Media={'MediaFileUri': job_uri},
+                MediaFormat = file_format,
+                LanguageCode=language)
+            
+            while True:
+                result = self.transcribe.get_transcription_job(TranscriptionJobName=job_name)
+                if result['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+                    break
+                time.sleep(15)
+            if result['TranscriptionJob']['TranscriptionJobStatus'] == "COMPLETED":
+                response = urlopen(result['TranscriptionJob']['Transcript']['TranscriptFileUri'])
+                data = json.loads(response.read())
+            return data['results']['transcripts'][0]['transcript']
+
+# AWS S3
+class AWSS3:
+    
+        def __init__(self, bucket=None):
+            self.s3_client = boto3.client('s3', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+            self.bucket = bucket
+
+        def read_metadata(self, key, id):
+            response = self.s3_client.head_object(Bucket=self.bucket, Key=key)
+            return response['Metadata'][id]
+
+        def list_items(self, key):
+            list=self.s3_client.list_objects_v2(Bucket=self.bucket,Prefix=key)
+            return list.get('Contents', [])
+        
+        def upload_file(self, file, s3_file):
+            """Upload a file to an S3 bucket
+            """
+            try:
+                #the first argument is the file path
+
+                self.s3_client.upload_file(file, self.bucket, s3_file, ExtraArgs={'Metadata': {'Name': s3_file}})
+                logging.info('File Successfully Uploaded on S3')
+                return True
+            except FileNotFoundError:
+                time.sleep(9)
+                logging.error('File not found.')
+                return False
+        
+        def download_file(self, bucket, object_name, file_name):
+            """Download a file from an S3 bucket
+    
+            :param bucket: Bucket to download from
+            :param object_name: S3 object name
+            :param file_name: File to download, path
+            :return: True if file was downloaded, else False
+    
+            """
+            # Download the file
+            try:
+                response = self.s3_client.download_file(bucket, object_name, file_name)
+            except Exception as e:
+                logging.error(e)
+                return False
+            return True
+
+# Lambda
+class AWSLambda:
+    def __init__(self):
+        self.lambda_client = boto3.client('lambda', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
+    
+    def invoke_lambda(self, function_name, payload):
+        """Invoke a lambda function
+        """
+        try:
+            response = self.lambda_client.invoke(FunctionName=function_name, InvocationType='RequestResponse', Payload=payload)
+            logging.info('Lambda invoked')
+            body=response['Payload'].read()
+            json_object = json.loads(body)
+            return json_object['body']
+        except Exception as e:
+            logging.error(e)
+            return False
+
+# Spacy NLP
+class TextSplitter:
+
+    def __init__(self):
+        self.nlp = spacy.load("it_core_news_sm")
+
+    def process(self, text):
+        doc = self.nlp(text)
+        sents = list(doc.sents)
+        vecs = np.stack([sent.vector / sent.vector_norm for sent in sents])
+        return sents, vecs
+
+    def cluster_text(self, sents, vecs, threshold):
+        clusters = [[0]]
+        for i in range(1, len(sents)):
+            if np.dot(vecs[i], vecs[i-1]) < threshold:
+                clusters.append([])
+            clusters[-1].append(i)
+        
+        return clusters
+
+    
+    def clean_text(self, text):
+        # Add your text cleaning process here
+        return text
+        
+    def split_text(self, data, threshold=0.9):
+        '''
+        Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
+        '''
+        # Initialize the clusters lengths list and final texts list
+        clusters_lens = []
+        final_texts = []
+
+        # Process the chunk
+        threshold = 0.3
+        sents, vecs = self.process(data)
+
+        # Cluster the sentences
+        clusters = self.cluster_text(sents, vecs, threshold)
+
+        for cluster in clusters:
+            cluster_txt = self.clean_text(' '.join([sents[i].text for i in cluster]))
+            cluster_len = len(cluster_txt)
+            
+            # Check if the cluster is too short
+            if cluster_len < 60:
+                continue
+            
+            # Check if the cluster is too long
+            elif cluster_len > 3000:
+                threshold = 0.6
+                sents_div, vecs_div = self.process(cluster_txt)
+                reclusters = self.cluster_text(sents_div, vecs_div, threshold)
+                
+                for subcluster in reclusters:
+                    div_txt = self.clean_text(' '.join([sents_div[i].text for i in subcluster]))
+                    div_len = len(div_txt)
+                    
+                    if div_len < 60 or div_len > 3000:
+                        continue
+                    
+                    clusters_lens.append(div_len)
+                    final_texts.append(div_txt)
+                    
+            else:
+                clusters_lens.append(cluster_len)
+                final_texts.append(cluster_txt)
+            
+        return final_texts
+
+# DynamoDB
+class DynamoDBManager:
+    def __init__(self, region, table_name):
+        self.region = region
+        self.table_name = table_name
+        self.dynamodb = boto3.resource('dynamodb', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),  region_name=region)
+        self.table = self.dynamodb.Table(table_name)
+    
+    def write_item(self, item):
+        try:
+            response = self.table.put_item(Item=item)
+            print("Item added successfully:", response)
+        except Exception as e:
+            print("Error writing item:", e)
+    
+    def update_item(self, key, update_expression, expression_values):
+        try:
+            response = self.table.update_item(
+                Key=key,
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            print("Item updated successfully:", response)
+        except Exception as e:
+            print("Error updating item:", e)
+    def get_item(self, key):
+        try:
+            response = self.table.get_item(Key=key)
+            print("Item retrieved successfully:", response)
+            return response
+        except Exception as e:
+            print("Error retrieving item:", e)
+
+# LangChain
+class LangChainAI:
+
+    def __init__(self):
+        self.text_summarizer = TextSplitter()
+        self.llm = ChatOpenAI(
+          model_name="gpt-3.5-turbo-16k", # default model
+          temperature=0.9
+          ) #temperature dictates how whacky the output should be
+        self.chains = []
+        self.chunk_size=1000,
+        self.chunk_overlap=20
+
+    def split_docs(self, documents):
+        '''
+        Splitting the documents into chunks of text
+        converting them into a list of documents
+        '''
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        docs = text_splitter.create_documents(documents)
+        # docs = text_splitter.split_documents(documents)
+        return docs
+    
+    # def summarize_chain(self, text):
+    #     # Summarizing the text using the summarization chain
+    #     prompt = PromptTemplate(
+    #     input_variables=["long_text"],
+    #     template="Puoi riassumere questo testo (in italiano)? {long_text} \n\n",
+    #     )
+    #     llmchain = LLMChain(llm=self.llm, prompt=prompt)
+    #     res=llmchain.run(text)+'\n\n'
+    #     return res
+    
+    def translate_text(self, text):
+        prompt_template = PromptTemplate.from_template(
+            "traduci {text} in italiano."
+        )
+        prompt_template.format(text=text)
+        llmchain = LLMChain(llm=self.llm, prompt=prompt_template)
+        res=llmchain.run(text)+'\n\n'
+        return res
+    
+    def summarize_text(self, text):
+        '''
+        The map reduce documents chain first applies an LLM chain to each document individually (the Map step), 
+        treating the chain output as a new document. 
+        It then passes all the new documents to a separate combine documents chain to get a single output (the Reduce step). 
+        It can optionally first compress, or collapse, 
+        the mapped documents to make sure that they fit in the combine documents chain 
+        (which will often pass them to an LLM). This compression step is performed recursively if necessary.
+        '''
+        chain = load_summarize_chain(self.llm, chain_type="map_reduce", verbose = True) 
+        docs = self.text_summarizer.split_text(text) 
+        max_chunk_len = len(max(docs, key = len))
+        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
+        docs = doc_splitter.create_documents(docs)
+        summarized_data = chain.run(docs)
+        translated_summarized_data = self.translate_text(summarized_data) #to resolve a bug in the summarize chain which returns the text in english
+        return translated_summarized_data
+
+    def bullet_point_text(self, text):
+        '''
+        Making the text more understandable by creating bullet points,
+        using the chain StuffDocumentsChain:
+        this chain will take a list of documents, 
+        inserts them all into a prompt, and passes that prompt to an LLM
+        See: https://python.langchain.com/docs/use_cases/summarization
+        '''
+        docs = self.text_summarizer.split_text(text) 
+        max_chunk_len = len(max(docs, key = len))
+        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
+        docs = doc_splitter.create_documents(docs)
+
+        # Define prompt
+        prompt_template = """Scrivi una lista di bullet point che sintetizzano il contenuto dei documenti:
+        "{text}"
+        Lista dei bullet points:"""
+        prompt = PromptTemplate.from_template(prompt_template)
+
+        # Define LLM chain
+        llm_chain = LLMChain(llm=self.llm, prompt=prompt)
+
+        # Define StuffDocumentsChain
+        stuff_chain = StuffDocumentsChain(
+            llm_chain=llm_chain, document_variable_name="text"
+        )
+        res=stuff_chain.run(docs)
+        return res
+    
+    def paraphrase_text(self, text):
+        '''
+        Paraphrasing the text using the chain
+        '''
+        prompt = PromptTemplate(
+        input_variables=["long_text"],
+        template="Puoi parafrasare questo testo (in italiano)? {long_text} \n\n",
+        )
+        llmchain = LLMChain(llm=self.llm, prompt=prompt)
+        res=llmchain.run(text)+'\n\n'
+        return res
+    
+    def expand_text(self, text):
+        '''
+        Enhancing the text using the chain
+        '''
+        prompt = PromptTemplate(
+        input_variables=["long_text"],
+        template="Puoi arricchiere l'esposizione di questo testo (in italiano)? {long_text} \n\n",
+        )
+        llmchain = LLMChain(llm=self.llm, prompt=prompt)
+        res=llmchain.run(text)+'\n\n'
+        return res
+
+    def draft_text(self, text):
+        '''
+        Makes a draft of the text using the chain
+        '''
+        prompt = PromptTemplate(
+        input_variables=["long_text"],
+        template="Puoi fare una minuta della trascrizione di una riunione contenuta in questo testo (in italiano)? {long_text} \n\n",
+        )
+        llmchain = LLMChain(llm=self.llm, prompt=prompt)
+        res=llmchain.run(text)+'\n\n'
+        return res
+
+    def chain(self, user_questions):
+        # Generating the final answer to the user's question using all the chains
+
+        sentences=[]
+
+        for text in user_questions:
+            # print(text)
+            
+            # Chains
+            prompt = PromptTemplate(
+            input_variables=["long_text"],
+            template="Puoi rendere questo testo più comprensibile? {long_text} \n\n",
+            )
+            llmchain = LLMChain(llm=self.llm, prompt=prompt)
+            res=llmchain.run(text)+'\n\n'
+            print(res)
+            sentences.append(res)
+
+        print(sentences)
+        
+        # Chain 2
+        template = """Puoi ordinare il testo di queste frasi secondo il significato? {sentences}\n\n"""
+        prompt_template = PromptTemplate(input_variables=["sentences"], template=template)
+        question_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
+
+        # Final Chain
+        template = """Can you summarize this text by creating bullet points of the concepts useful for fast learning? '{text}'"""
+        prompt_template = PromptTemplate(input_variables=["text"], template=template)
+        answer_chain = LLMChain(llm=self.llm, prompt=prompt_template)
+
+        overall_chain = SimpleSequentialChain(
+            chains=[question_chain, answer_chain],
+            verbose=True,
+        )
+
+        res = overall_chain.run(sentences)
+    
+        return res
+
