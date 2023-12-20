@@ -245,49 +245,7 @@ if True:
     
     with tab4:
         st.write("COMING SOON")
-
-            
-
-        ########### Evaluate us ###########
-        # collector = FeedbackCollector()
-        # st.write("Cosa ne pensi della nostra idea?")
-        # collector.st_feedback(feedback_type="faces")
-        # q1 = st.text_input("Cosa possiamo migliorare?")
-        # # feedback = collector.st_feedback(
-        # #     "custom",
-        # #     user_response={
-        # #         "Q 1": q1
-        # #     }
-        # # )
-
-        # Definizione del secondo tab con l'embed di una pagina html
-        # st.sidebar.title("FAQ")
-
-        # st.sidebar.subheader("Cosa posso fare con Riassume?")
-
-        # st.sidebar.markdown("""
-        # Benvenuto in Riassume! Questa applicazione è progettata per rendere più semplice la vita degli studenti, automatizzando grazie all'AI i compiti più noiosi.
-                            
-        # ## Sbobinare gli audio delle lezioni 
-        # 1. Carica il file audio della lezione in mp3 facendo clic sul pulsante "Sfoglia file".
-        # 2. Una volta caricato il file, l'applicazione lo elaborerà e restituirà il testo trascritto ed elencando gli argomenti principali.
-        # 3. Il testo riassunto verrà visualizzato nella sezione "I miei riassunti".
-
-        # ## Riassumere le Pagine di un Libro
-
-        # 1. Carica le foto delle pagine del libro facendo clic sul pulsante "Sfoglia file" o trascinandole nell'apposita area.
-        # 2. Una volta caricate le immagini, l'applicazione le elaborerà e restituirà il testo riassunto delle pagine.
-        # 3. Il testo riassunto verrà visualizzato nella sezione "I miei riassunti".
-
-        # Nota: Assicurati di caricare solo immagini contenenti testo leggibile.
-
-        # ## Riassumere, Parafrasare o Espandere il Testo
-
-        # 1. Digita o incolla il testo nel campo "Inserisci i tuoi appunti qui".
-        # 2. Clicca sul pulsante "Riassumi", "Parafrasa" o "Espandi" a seconda dell'opzione scelta.
-        # 3. Il testo elaborato verrà visualizzato nella sezione corrispondente.
-                            
-        # """)
+        
 
     with tab5:
         list_contents=s3_client.list_items(username)

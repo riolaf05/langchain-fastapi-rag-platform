@@ -25,4 +25,4 @@ COPY utils.py utils.py
 COPY main.py main.py 
 COPY certs certs
 
-ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.sslCertFile=/app/certs/riassumeapp.rioengineers.com+5.pem", "--server.sslKeyFile=/app/certs/riassumeapp.rioengineers.com+5-key.pem"]
+ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.sslCertFile=/app/certs/llm.rioengineers.com+4.pem", "--server.sslKeyFile=/app/certs/llm.rioengineers.com+4-key.pem"]
