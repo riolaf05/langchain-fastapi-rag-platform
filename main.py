@@ -177,7 +177,7 @@ if True:
                             st.write("Formato non supportato.")
                     
                     #Salva response
-                    response = langchain_client.chain(text_input)
+                    response = langchain_client.final_chain(text_input)
                     with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
                         f.write(response)
                     ## Upload file testo

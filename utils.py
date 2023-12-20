@@ -18,235 +18,8 @@ from urllib.request import urlopen
 import spacy
 import numpy as np
 import random
-
 load_dotenv()
-
-class NotionAPI:
-    def __init__(self, api_key):
-        self.base_url = "https://api.notion.com/v1/"
-        self.headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Notion-Version": "2022-06-28",
-        }
-
-    def creteDatabase(self, root, title):
-        '''
-        Creates a full page database on a parent page
-        '''
-        createUrl = self.base_url + "databases"
-        newDatabaseData = {   
-            "parent": {
-                "type": "page_id",
-                "page_id": root,
-            },
-            "title": [
-                {
-                    "type": "text",
-                    "text": {
-                        "content": title,
-                    }
-                }
-            ],
-            "properties": {
-                "Name": {
-                    "title": [
-                        {
-                            "text": {
-                                "content": title
-                            }
-                        }
-                        ],
-                },
-            }
-        }
-        
-        res = requests.request("POST", createUrl, headers=self.headers, data=json.dumps(newDatabaseData))
-        data = res.json()
-        # print(res.status_code)
-        print(res.text)
-
-        return data
-
-    def filterResponse(self, json_object):
-        '''
-        Create a new json with only the properties we need
-        '''
-        filtered_json = {}
-        filtered_json['results'] = []
-        #mock root data
-        filtered_json['results'].append({
-            "id": "7235d5ae-6a34-4308-a600-4fe8414b23d0",
-            "parentId": "#",
-            "name": "Root",
-            "type": "directory"
-        })
-        for result in json_object['results']:
-            filtered_result = {}
-            filtered_result['id'] = result['id']
-            filtered_result['parentId'] = result['parent']['database_id']
-            filtered_result['url'] = result['url']
-            filtered_result['name'] = result['properties']['Name']['title'][0]['plain_text']
-            filtered_result['type'] = "file" #TODO: change
-            filtered_json['results'].append(filtered_result)
-        return filtered_json
-    
-    def getPage(self, page_id):
-        readUrl = f"https://api.notion.com/v1/pages/{page_id}"
-
-        res = requests.request("GET", readUrl, headers=self.headers)
-        data = res.json()
-        # print(res.status_code)
-        # print(res.text)
-
-        # with open('./db.json', 'w', encoding='utf8') as f:
-        #     json.dump(data, f, ensure_ascii=False)
-
-        #filter data
-        # filtered_data = self.filterResponse(data)
-
-        return data
-    
-    def getPageContent(self, page_id):
-        readUrl = f"https://api.notion.com/v1/blocks/{page_id}/children"
-
-        res = requests.request("GET", readUrl, headers=self.headers)
-        data = res.json()
-
-        return data['results'][0]['paragraph']['rich_text'][0]['text']['content']
-
-    def createPage(self, database_id, title, content):
-        '''
-        Create a page inside a database
-        '''
-        createUrl = 'https://api.notion.com/v1/pages'
-        newPageData = {
-            "parent": { "database_id": database_id },
-            "properties": {
-                    "title": [
-                        {
-                            "text": {
-                                "content": title
-                            }
-                        }
-                    ]
-                },
-            "children": [
-                {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{ "type": "text", "text": { "content": content } }]
-                }
-                }
-            ]
-        }
-        data = json.dumps(newPageData)
-        
-        res = requests.request("POST", createUrl, headers=self.headers, data=data)
-        json_res = json.loads(res.text)
-        print(json_res)
-        return json_res
-    
-    def updatePage(self, pageId, new_title, new_content):
-        
-        readUrl = f"https://api.notion.com/v1/blocks/{pageId}/children"
-        res = requests.request("GET", readUrl, headers=self.headers)
-        page=res.json()
-
-        #TODO: AL MOMENTO QUESTA API APPENDE UN NUOVO BLOCCO, NON SOSTITUISCE IL VECCHIO
-        new_block = {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{ "type": "text", "text": { "content": new_content } }]
-                }
-            }
-
-        response = requests.patch(readUrl, headers=self.headers, json={"children": [new_block]})
-
-        print(response.status_code)
-        print(response.text)
-        
-# SQS
-def send_msg(message, queue_url):
-
-    # Crea un'istanza del client SQS
-    sqs = boto3.client('sqs', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
-
-    # URL del topic SQS
-    queue_url = queue_url
-
-    # Invia un messaggio al topic
-    response = sqs.send_message(
-        QueueUrl=queue_url,
-        MessageBody=message
-    )
-
-    # Stampa l'ID del messaggio inviato
-    print(f"Message ID: {response['MessageId']}")
-
-def receive_msg(queue_url):
-    # Crea un'istanza del client SQS
-    sqs = boto3.client('sqs', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region_name=os.getenv('AWS_REGION'))
-
-    # URL del topic SQS
-    queue_url = queue_url
-
-    # Riceve un messaggio dal topic
-    response = sqs.receive_message(
-        QueueUrl=queue_url,
-        MaxNumberOfMessages=1,
-        VisibilityTimeout=0,
-        WaitTimeSeconds=0
-    )
-
-    try:
-
-    # Stampa il messaggio ricevuto
-        print(response['Messages'][0]['Body'])
-
-        # Elimina il messaggio ricevuto dal topic
-        sqs.delete_message(
-            QueueUrl=queue_url,
-            ReceiptHandle=response['Messages'][0]['ReceiptHandle']
-        )
-
-        return response['Messages'][0]['Body']
-
-    except KeyError:
-        print("No messages on queue")
-        return None
-    
-# OpenAI
-class OpenAIClient:
-
-    def __init__(self, api_key):
-           
-        self.api_key=api_key
-        self.model_engine = "text-davinci-003"
-        self.max_tokens = 1024
-        self.temperature = 0.5
-        self.stop = None
-        self.n = 1
-        openai.api_key = self.api_key
-    
-
-    def sendToOpenAI(self, prompt):
-
-        completion = openai.Completion.create(
-                engine=self.model_engine,
-                prompt=prompt,
-                max_tokens=self.max_tokens,
-                n=self.n,
-                stop=self.stop,
-                temperature=self.temperature,
-            )
-        response = completion.choices[0].text
-
-        return response
-
+     
 # AWS Texttract
 class AWSTexttract:
 
@@ -532,16 +305,6 @@ class LangChainAI:
         # docs = text_splitter.split_documents(documents)
         return docs
     
-    # def summarize_chain(self, text):
-    #     # Summarizing the text using the summarization chain
-    #     prompt = PromptTemplate(
-    #     input_variables=["long_text"],
-    #     template="Puoi riassumere questo testo (in italiano)? {long_text} \n\n",
-    #     )
-    #     llmchain = LLMChain(llm=self.llm, prompt=prompt)
-    #     res=llmchain.run(text)+'\n\n'
-    #     return res
-    
     def translate_text(self, text):
         prompt_template = PromptTemplate.from_template(
             "traduci {text} in italiano."
@@ -634,7 +397,27 @@ class LangChainAI:
         res=llmchain.run(text)+'\n\n'
         return res
 
-    def chain(self, user_questions):
+    def chat_prompt(self, text):
+        #TODO
+        pass
+
+    def summarize_video(self, url):
+        #TODO
+        pass
+
+    def github_prompt(self, url):
+        #TODO
+        pass
+
+    def summarize_repo(self, url):
+        #TODO
+        pass
+
+    def generate_paragraph(self, text):
+        #TODO
+        pass
+
+    def final_chain(self, user_questions):
         # Generating the final answer to the user's question using all the chains
 
         sentences=[]
