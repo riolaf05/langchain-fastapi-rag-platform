@@ -247,19 +247,24 @@ if True:
         st.title("Benvenuto, " + username + "!")
 
         ########### Riasusmi da un video online ###########
-        st.title("Inserisci l'url di un video con cui chattare")
-        url = st.text_input('URL del video', "")
-        text = langchain_client.extract_video(url)
+        with st.form("my_form"):
+            st.write("Inserisci l'url di un video con cui chattare")
+            url = st.text_input('URL del video', "")
 
-        ## Upload file testo
-        with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
-            f.write("Contenuo video: \n\n")
-            f.write(text)
-        s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Testo video.txt")
-        #Remove tmp file
-        os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
-        st.success("Trascrizione video carica con successo!")
+            # Every form must have a submit button.
+            submitted = st.form_submit_button("Submit")
+            if submitted:
+                text = langchain_client.extract_video(url)
         
+                ## Upload file testo
+                with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
+                    f.write("Contenuo video: \n\n")
+                    f.write(text)
+                s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Testo video.txt")
+                #Remove tmp file
+                os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
+                st.success("Trascrizione video carica con successo!")
+                   
 
     with tab5:
         st.write("COMING SOON")
