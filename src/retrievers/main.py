@@ -247,7 +247,7 @@ if True:
         st.title("Benvenuto, " + username + "!")
 
         ########### Riasusmi da un video online ###########
-        st.title("Chatta con un video")
+        st.title("Inserisci l'url di un video con cui chattare")
         url = st.text_input('URL del video', "")
         text = langchain_client.extract_video(url)
 
