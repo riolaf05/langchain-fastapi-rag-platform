@@ -411,6 +411,7 @@ class LangChainAI:
         Estrae il testo di un video da un url in ingresso
         '''
         local = False
+        text=""
         save_dir=""
         # Transcribe the videos to text
         if local:
@@ -420,7 +421,10 @@ class LangChainAI:
         else:
             loader = GenericLoader(YoutubeAudioLoader([url], save_dir), OpenAIWhisperParser())
         docs = loader.load()
-        return docs
+        for docs in docs:
+            #write all the text into the var
+            text+=docs.page_content+'\n\n'
+        return text
 
     def github_prompt(self, url):
         #TODO

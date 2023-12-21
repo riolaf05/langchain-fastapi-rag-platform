@@ -248,8 +248,18 @@ if True:
 
         ########### Riasusmi da un video online ###########
         st.title("Chatta con un video")
+        url = st.text_input('URL del video', "")
+        text = langchain_client.extract_video(url)
 
-        # docs = extract_video(url)
+        ## Upload file testo
+        with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
+            f.write("Contenuo video: \n\n")
+            f.write(text)
+        s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Testo video.txt")
+        #Remove tmp file
+        os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
+        st.success("Trascrizione video carica con successo!")
+        
 
     with tab5:
         st.write("COMING SOON")
