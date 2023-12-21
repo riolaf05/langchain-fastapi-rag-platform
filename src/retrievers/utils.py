@@ -14,6 +14,11 @@ from langchain.chains import LLMChain, SimpleSequentialChain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.chains.summarize import load_summarize_chain
+from langchain.document_loaders.blob_loaders.youtube_audio import YoutubeAudioLoader
+from langchain.document_loaders.generic import GenericLoader
+from langchain.document_loaders.parsers.audio import OpenAIWhisperParser, OpenAIWhisperParserLocal
+from dotenv import load_dotenv
+load_dotenv()
 from urllib.request import urlopen
 import spacy
 import numpy as np
@@ -401,9 +406,21 @@ class LangChainAI:
         #TODO
         pass
 
-    def summarize_video(self, url):
-        #TODO
-        pass
+    def extract_video(self, url):
+        '''
+        Estrae il testo di un video da un url in ingresso
+        '''
+        local = False
+        save_dir=""
+        # Transcribe the videos to text
+        if local:
+            loader = GenericLoader(
+                YoutubeAudioLoader([url], save_dir), OpenAIWhisperParserLocal()
+            )
+        else:
+            loader = GenericLoader(YoutubeAudioLoader([url], save_dir), OpenAIWhisperParser())
+        docs = loader.load()
+        return docs
 
     def github_prompt(self, url):
         #TODO

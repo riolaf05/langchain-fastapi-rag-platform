@@ -244,7 +244,12 @@ if True:
 
     
     with tab4:
-        st.write("COMING SOON")
+        st.title("Benvenuto, " + username + "!")
+
+        ########### Riasusmi da un video online ###########
+        st.title("Chatta con un video")
+
+        # docs = extract_video(url)
 
     with tab5:
         st.write("COMING SOON")
