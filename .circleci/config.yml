@@ -19,7 +19,8 @@ jobs:
       - run:
           name: Build and push Docker image
           command: |
-            docker build -t $DOCKER_LOGIN/$IMAGE_NAME:<< pipeline.git.branch >> ./src/retrievers/Dockerfile 
+            cd src/retrievers/
+            docker build -t $DOCKER_LOGIN/$IMAGE_NAME:<< pipeline.git.branch >> -f Dockerfile .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
             docker push $DOCKER_LOGIN/$IMAGE_NAME:<< pipeline.git.branch >>
 
