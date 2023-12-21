@@ -254,16 +254,24 @@ if True:
             # Every form must have a submit button.
             submitted = st.form_submit_button("Submit")
             if submitted:
-                text = langchain_client.extract_video(url)
-        
-                ## Upload file testo
-                with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
-                    f.write("Contenuo video: \n\n")
-                    f.write(text)
-                s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Testo video.txt")
-                #Remove tmp file
-                os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
-                st.success("Trascrizione video carica con successo!")
+                with st.spinner('Elaborazione, per favore attendi...'):
+                    logger.info("Transcribing video url...")
+                    try:
+                        text = langchain_client.extract_video(url)
+                        logger.info("Transcription completed...")
+                    except Exception as e:
+                        logger.error(e)
+                        st.error("Errore durante la trascrizione del video. Riprova o contatta l'assistenza.")
+            
+                    ## Upload file testo
+                    with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
+                        f.write("Contenuo video: \n\n")
+                        f.write(text)
+                    s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Testo video.txt")
+                    #Remove tmp file
+                    os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
+                    logger.info("Transcriptin uploaded...")
+                    st.success("Trascrizione video carica con successo!")
                    
 
     with tab5:
