@@ -33,8 +33,8 @@ textract = AWSTexttract()
 dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), table_name)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-UPLOAD_FOLDER = '/tmp' #on Linux/Docker
-# UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
+# UPLOAD_FOLDER = '/tmp' #on Linux/Docker
+UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
 SQS_URL = os.getenv('SQS_URL')
 
 # Configurazione della pagina Streamlit
@@ -147,7 +147,6 @@ if True:
                             logger.error(e)
                             st.error("Errore durante il caricamento della nota. Riprova o contatta l'assistenza.")
 
-    
     with tab2:
 
         ########### Riasusmi da un libro ###########
@@ -181,7 +180,7 @@ if True:
                     with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
                         f.write(response)
                     ## Upload file testo
-                    s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Argomenti foto "+str(filename)+".txt")
+                    s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Argomenti documento "+str(filename)+".txt")
                     #Remove tmp file
                     os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt'))
                     st.success("Nota carica con successo!")
@@ -242,7 +241,6 @@ if True:
     with tab3:
         st.write("COMING SOON")
 
-    
     with tab4:
         st.title("Benvenuto, " + username + "!")
 
@@ -273,10 +271,8 @@ if True:
                     logger.info("Transcriptin uploaded...")
                     st.success("Trascrizione video carica con successo!")
                    
-
     with tab5:
         st.write("COMING SOON")
-
 
     with tab6:
         list_contents=s3_client.list_items(username)

@@ -17,12 +17,16 @@ from langchain.chains.summarize import load_summarize_chain
 from langchain.document_loaders.blob_loaders.youtube_audio import YoutubeAudioLoader
 from langchain.document_loaders.generic import GenericLoader
 from langchain.document_loaders.parsers.audio import OpenAIWhisperParser, OpenAIWhisperParserLocal
+from langchain.docstore.document import Document
+from langchain.chains.question_answering import load_qa_chain
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
 import spacy
+import chromadb
 import numpy as np
 import random
+import datetime
 load_dotenv()
      
 # AWS Texttract
@@ -209,7 +213,7 @@ class TextSplitter:
         # Add your text cleaning process here
         return text
         
-    def split_text(self, data, threshold=0.9):
+    def split_text(self, data, threshold=0.3):
         '''
         Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
         '''
@@ -218,7 +222,6 @@ class TextSplitter:
         final_texts = []
 
         # Process the chunk
-        threshold = 0.3
         sents, vecs = self.process(data)
 
         # Cluster the sentences
@@ -251,8 +254,13 @@ class TextSplitter:
             else:
                 clusters_lens.append(cluster_len)
                 final_texts.append(cluster_txt)
+        
+        #converting to Langchain documents
+        final_docs=[]
+        for doc in final_texts:
+            final_docs.append(Document(page_content=doc, metadata={"source": "local"}))
             
-        return final_texts
+        return final_docs
 
 # DynamoDB
 class DynamoDBManager:
@@ -287,21 +295,105 @@ class DynamoDBManager:
         except Exception as e:
             print("Error retrieving item:", e)
 
+# Chroma vector DB
+class ChromaDBManager:
+
+    def __init__(self):
+        self.client = chromadb.PersistentClient(path=os.getenv("PERSIST_DIR_PATH"))
+
+    def create_collection(self, collection_name):
+        try:
+            collection = self.client.create_collection(name=collection_name)
+            print(f"Collection {collection_name} created successfully.")
+        except Exception as e:
+            print(f"Error creating collection {collection_name}: {e}")
+        return collection
+    
+    def store_documents(self, collection, docs):
+        '''
+        Stores document to a collection
+        By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
+        '''
+        #add documents to collection
+        collection_documents = [document.page_content for document in docs]
+        collection_metadata = [document.metadata for document in docs]
+        
+        #get a str id for each collection id, starting from the current maximum id of the collection
+        collection_ids = [str(collection_id + 1) for collection_id in range(len(collection_documents))]
+
+        #filter metadata
+        self.replace_empty_medatada(collection_metadata)
+
+        #add documents to collection
+        #this method creates the embedding and the colection 
+        #By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
+        collection.add(ids=collection_ids, documents=collection_documents, metadatas=collection_metadata)
+
+        #the collection are automatically stored since we're using a persistant client
+        return collection.count()
+    
+        
+    def replace_empty_medatada(self, metadata_list):
+        #iter through metadata elements
+        for metadata in metadata_list:
+            #get index of metadata element
+            index = metadata_list.index(metadata)
+            #get metadata keys
+            metadata_keys = metadata.keys()
+            #iter through metadata keys
+            for key in metadata_keys:
+                #if key is empty
+                if metadata[key] == []:
+                    #replace it with None
+                    metadata_list[index][key] = ''
+                if type(metadata[key]) == datetime.datetime:
+                    #replace it str
+                    metadata_list[index][key] = str(metadata[key])
+
+    def retrieve_documents(collection, query, n_results=3):
+        '''
+        To run a similarity search, you can use the query method of the collection.
+        '''
+        llm_documents = []
+
+        #similarity search <- #TODO compare with Kendra ? 
+        res=collection.query(query_texts=[query], n_results=n_results)
+
+        #create documents from collection
+        documents=[document for document in res['documents'][0]]
+        metadatas=[metadata for metadata in res['metadatas'][0]]
+        
+        for i in range(len(documents)):
+            doc=Document(page_content=documents[i], metadata=metadatas[i])
+            llm_documents.append(doc)
+        return llm_documents
+                    
+
 # LangChain
 class LangChainAI:
 
-    def __init__(self):
+    def __init__(self, 
+                 model_name="gpt-3.5-turbo-16k",
+                 chatbot_model="gpt-3.5-turbo", 
+                 chunk_size=1000, 
+                 chunk_overlap=20
+                 ):
+        
         self.text_summarizer = TextSplitter()
+
+        self.chatbot_model=chatbot_model
+        
         self.llm = ChatOpenAI(
-          model_name="gpt-3.5-turbo-16k", # default model
+          model_name=model_name, # default model
           temperature=0.9
           ) #temperature dictates how whacky the output should be
         self.chains = []
-        self.chunk_size=1000,
-        self.chunk_overlap=20
+        self.chunk_size=chunk_size,
+        self.chunk_overlap=chunk_overlap
 
     def split_docs(self, documents):
         '''
+        Takes a list of document as an array
         Splitting the documents into chunks of text
         converting them into a list of documents
         '''
@@ -476,4 +568,10 @@ class LangChainAI:
         res = overall_chain.run(sentences)
     
         return res
+    
+    def create_chatbot_chain(self):
+        model_name = self.chatbot_model
+        llm = ChatOpenAI(model_name=model_name)
+        chain = load_qa_chain(llm, chain_type="stuff", verbose=False)
+        return chain
 
