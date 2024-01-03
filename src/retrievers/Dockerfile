@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
-    ffmpeg \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,7 +17,7 @@ RUN python -m spacy download it_core_news_sm
 
 EXPOSE 8501
 
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+# HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
 # COPY config.yaml config.yaml
 # COPY .env .env
@@ -26,4 +25,8 @@ COPY utils.py utils.py
 COPY main.py main.py 
 COPY certs certs
 
-ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.sslCertFile=/app/certs/llm.rioengineers.com+4.pem", "--server.sslKeyFile=/app/certs/llm.rioengineers.com+4-key.pem"]
+#for normal deploy
+# ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.sslCertFile=/app/certs/riassumeapp.rioengineers.com+5.pem", "--server.sslKeyFile=/app/certs/riassumeapp.rioengineers.com+5-key.pem"]
+
+#for Cloud Run deploy
+ENTRYPOINT ["streamlit", "run", "main.py", "--server.port=8080", "--server.address=0.0.0.0"] 

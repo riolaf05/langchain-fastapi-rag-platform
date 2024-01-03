@@ -5,7 +5,7 @@ import streamlit_authenticator as stauth
 from PIL import Image
 import os
 from dotenv import load_dotenv
-from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager
+from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, ChromaDBManager, TextSplitter
 import yaml
 from yaml.loader import SafeLoader
 # from trubrics.integrations.streamlit import FeedbackCollector
@@ -33,9 +33,11 @@ textract = AWSTexttract()
 dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), table_name)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-# UPLOAD_FOLDER = '/tmp' #on Linux/Docker
-UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
+UPLOAD_FOLDER = '/tmp' #on Linux/Docker
+# UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
 SQS_URL = os.getenv('SQS_URL')
+dbClient = ChromaDBManager() 
+textSplitter = TextSplitter()
 
 # Configurazione della pagina Streamlit
 # st.set_page_config(page_title="Riassume: l'AI a supporto degli studenti", page_icon=":memo:", layout="wide")
@@ -45,6 +47,17 @@ def speech_to_text(job_name, lang_code):
     data = transcribe.amazon_transcribe(JOB_URI, job_name, uploaded_mp3.name, lang_code)
     logger.info("File audio transcribed!")
     return data
+
+def dynamodb_update_counter(username):
+    get_key = {
+            "username": username
+        }
+    update_expression = "SET n_images = :new_counter"
+    expression_values = {
+        ":new_counter": dynamo_manager.get_item(get_key)['Item']['n_images']+1
+    }
+    dynamo_manager.update_item(get_key, update_expression, expression_values)
+
 
 ### Cognito login #FIXME
 # authenticator = CognitoAuthenticator(
@@ -176,25 +189,30 @@ if True:
                             st.write("Formato non supportato.")
                     
                     #Salva response
-                    response = langchain_client.final_chain(text_input)
+                    string_input=" ".join(text_input) #join the array in a single string (summarize_text vuole una string in input)
+
+                    #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
+                    response = langchain_client.summarize_text(string_input) #TODO: portare fuori split_text!!
                     with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
                         f.write(response)
-                    ## Upload file testo
+
+                    store_embeddings=True
+                    if store_embeddings:
+                        #Create embeddings #FIXME: put it in async block ??? 
+                        collection = dbClient.get_or_create_collection("media-chat-service")
+                        semantic_split_docs=textSplitter.split_text(string_input) #split semantically
+                        docs = textSplitter.create_langchain_documents(semantic_split_docs) #create langchain documents from array of text
+                        dbClient.store_documents(collection=collection, docs=docs)
+
+                    # Upload file testo
                     s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Argomenti documento "+str(filename)+".txt")
-                    #Remove tmp file
+                    # Remove tmp file
                     os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt'))
                     st.success("Nota carica con successo!")
 
-                    ## Update user counter
-                    get_key = {
-                            "username": username
-                        }
-                    update_expression = "SET n_images = :new_counter"
-                    expression_values = {
-                        ":new_counter": dynamo_manager.get_item(get_key)['Item']['n_images']+1
-                    }
-                    dynamo_manager.update_item(get_key, update_expression, expression_values)
-
+                    ## Update user counter on DynamoDB
+                    dynamodb_update_counter(username)
+                    
             else:
                 st.write("Nessun file caricato.")
 

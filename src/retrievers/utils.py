@@ -217,6 +217,8 @@ class TextSplitter:
         '''
         Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
         '''
+    
+
         # Initialize the clusters lengths list and final texts list
         clusters_lens = []
         final_texts = []
@@ -256,10 +258,17 @@ class TextSplitter:
                 final_texts.append(cluster_txt)
         
         #converting to Langchain documents
-        final_docs=[]
-        for doc in final_texts:
-            final_docs.append(Document(page_content=doc, metadata={"source": "local"}))
+        ##lo posso fare anche con .create_documents !!
+        # final_docs=[]
+        # for doc in final_texts:
+        #     final_docs.append(Document(page_content=doc, metadata={"source": "local"}))
             
+        return final_texts
+    
+    def create_langchain_documents(texts, metadata={"source": "local"}):
+        final_docs=[]
+        for doc in texts:
+            final_docs.append(Document(page_content=doc, metadata=metadata))
         return final_docs
 
 # DynamoDB
@@ -301,9 +310,9 @@ class ChromaDBManager:
     def __init__(self):
         self.client = chromadb.PersistentClient(path=os.getenv("PERSIST_DIR_PATH"))
 
-    def create_collection(self, collection_name):
+    def get_or_create_collection(self, collection_name):
         try:
-            collection = self.client.create_collection(name=collection_name)
+            collection = self.client.get_or_create_collection(name=collection_name)
             print(f"Collection {collection_name} created successfully.")
         except Exception as e:
             print(f"Error creating collection {collection_name}: {e}")
@@ -312,6 +321,7 @@ class ChromaDBManager:
     def store_documents(self, collection, docs):
         '''
         Stores document to a collection
+        Gets Langchain documents in input.
         By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
         '''
         #add documents to collection
@@ -352,7 +362,8 @@ class ChromaDBManager:
 
     def retrieve_documents(collection, query, n_results=3):
         '''
-        To run a similarity search, you can use the query method of the collection.
+        To run a similarity search, 
+        you can use the query method of the collection.
         '''
         llm_documents = []
 
@@ -540,8 +551,8 @@ class LangChainAI:
             
             # Chains
             prompt = PromptTemplate(
-            input_variables=["long_text"],
-            template="Puoi rendere questo testo più comprensibile? {long_text} \n\n",
+                input_variables=["long_text"],
+                template="Puoi rendere questo testo più comprensibile? {long_text} \n\n",
             )
             llmchain = LLMChain(llm=self.llm, prompt=prompt)
             res=llmchain.run(text)+'\n\n'
@@ -556,7 +567,7 @@ class LangChainAI:
         question_chain = LLMChain(llm=self.llm, prompt=prompt_template, verbose=True)
 
         # Final Chain
-        template = """Can you summarize this text by creating bullet points of the concepts useful for fast learning? '{text}'"""
+        template = """Puoi sintetizzare questo testo in una lista di bullet points utili per la comprensione rapida del testo? '{text}'"""
         prompt_template = PromptTemplate(input_variables=["text"], template=template)
         answer_chain = LLMChain(llm=self.llm, prompt=prompt_template)
 
