@@ -23,6 +23,7 @@ JOB_URI="s3://riassume-transcribe-bucket/"
 S3_BUCKET='riassume-transcribe-bucket'
 COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
 COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
+COLLECTION_NAME="media-chat-service"
 table_name = "chatgpt-summary-users"
 langchain_client = LangChainAI()
 s3_client=AWSS3('riassume-document-bucket')
@@ -74,7 +75,7 @@ if True:
     username = 'test'
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI"])
-    
+
     try: 
         USER_ID = dynamo_manager.get_item({"username": username})['Item']['username']
     except Exception as e:
@@ -199,7 +200,7 @@ if True:
                     store_embeddings=True
                     if store_embeddings:
                         #Create embeddings #FIXME: put it in async block ??? 
-                        collection = dbClient.get_or_create_collection("media-chat-service")
+                        collection = dbClient.get_or_create_collection(COLLECTION_NAME)
                         semantic_split_docs=textSplitter.split_text(string_input) #split semantically
                         docs = textSplitter.create_langchain_documents(semantic_split_docs) #create langchain documents from array of text
                         dbClient.store_documents(collection=collection, docs=docs)
@@ -257,7 +258,22 @@ if True:
                 st.success("Nota carica con successo!")
 
     with tab3:
-        st.write("COMING SOON")
+
+        st.write("Inserisci l'url della pagina web da leggere")
+        url = st.text_input('URL del video', "")
+        docs = langchain_client.webbaseloader_scrape(url)
+
+        #split 
+        semantic_split_docs=textSplitter.split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
+        split_docs = textSplitter.create_langchain_documents(semantic_split_docs)
+
+        #store
+        collection = dbClient.get_or_create_collection(COLLECTION_NAME)
+        dbClient.store_documents(collection=collection, docs=split_docs)
+
+        logger.info("Web scraping completed...")
+        st.success("Pagina web letta con successo!")
+
 
     with tab4:
         st.title("Benvenuto, " + username + "!")

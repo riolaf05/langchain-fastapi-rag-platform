@@ -19,6 +19,7 @@ from langchain.document_loaders.generic import GenericLoader
 from langchain.document_loaders.parsers.audio import OpenAIWhisperParser, OpenAIWhisperParserLocal
 from langchain.docstore.document import Document
 from langchain.chains.question_answering import load_qa_chain
+from langchain.document_loaders import WebBaseLoader
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
@@ -586,4 +587,9 @@ class LangChainAI:
         llm = ChatOpenAI(model_name=model_name)
         chain = load_qa_chain(llm, chain_type="stuff", verbose=False)
         return chain
-
+    
+    #web
+    def webbaseloader_scrape(url):
+        loader = WebBaseLoader(url)
+        docs = loader.load()
+        return docs
