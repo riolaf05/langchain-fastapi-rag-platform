@@ -8,12 +8,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import TextLoader
 import chainlit as cl
 load_dotenv()
-from utils import build_chain, run_chain
+from utils import ChromaDBManager, LangChainAI, run_chain
 
-qa = build_chain()
+dbUtils = ChromaDBManager()
+langchainUtils = LangChainAI()
 chat_history = [] #FIXME
+chain = langchainUtils.create_chatbot_chain() #creates a chatbot with similarity search over vector DB as retriever
 
 @cl.on_message
 async def main(message: str):
-    answer = run_chain(qa, message, chat_history)
+
+    #answer 
+    answer = run_chain(chain, message, chat_history)
+    collection = dbUtils.get_or_create_collection("media-chat-service")
+    matching_docs = dbUtils.retrieve_documents(collection, message)
+    answer = chain.run(input_documents=matching_docs, question=message)
     await cl.Message(content=answer).send()

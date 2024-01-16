@@ -21,3 +21,4 @@ streamlit_cognito_auth
 yt_dlp
 pydub
 librosa
+chromadb

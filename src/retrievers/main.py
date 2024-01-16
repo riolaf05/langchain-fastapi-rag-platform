@@ -33,8 +33,8 @@ textract = AWSTexttract()
 dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), table_name)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-UPLOAD_FOLDER = '/tmp' #on Linux/Docker
-# UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
+# UPLOAD_FOLDER = '/tmp' #on Linux/Docker
+UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
 SQS_URL = os.getenv('SQS_URL')
 dbClient = ChromaDBManager() 
 textSplitter = TextSplitter()
@@ -74,7 +74,7 @@ if True:
     username = 'test'
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI"])
-
+    
     try: 
         USER_ID = dynamo_manager.get_item({"username": username})['Item']['username']
     except Exception as e:

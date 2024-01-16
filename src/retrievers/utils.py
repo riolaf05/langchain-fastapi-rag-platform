@@ -378,6 +378,7 @@ class ChromaDBManager:
             doc=Document(page_content=documents[i], metadata=metadatas[i])
             llm_documents.append(doc)
         return llm_documents
+    
                     
 
 # LangChain
