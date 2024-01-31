@@ -74,7 +74,7 @@ if True:
 
     username = 'test'
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI", "FEED RSS"])
 
     try: 
         USER_ID = dynamo_manager.get_item({"username": username})['Item']['username']
@@ -335,6 +335,21 @@ if True:
             text = conn.read("riassume-document-bucket/"+content['Key'], input_format="text", ttl=600)
             st.write(text)
             st.write("")
-        
+
+    with tab7:
+
+        feeds=[] #TODO: retrieve current feed from DynamoDB
+
+        new_element = st.text_input("Inserisci un url")
+        feeds.append(new_element)
+
+        selected_job_titles = st.multiselect(
+        label="urls",
+            options=feeds,
+            default=None,
+            placeholder="Scegli i feed",
+        )
+
+
 # else:
 #     st.error("Login fallito. Riprova.")
