@@ -20,6 +20,9 @@ from langchain.document_loaders.parsers.audio import OpenAIWhisperParser, OpenAI
 from langchain.docstore.document import Document
 from langchain.chains.question_answering import load_qa_chain
 from langchain.document_loaders import WebBaseLoader
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+from langchain.embeddings.openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
@@ -304,6 +307,33 @@ class DynamoDBManager:
             return response
         except Exception as e:
             print("Error retrieving item:", e)
+
+# Embedder
+class EmbeddingFunction:
+    def __init__(self, parametro):
+        self.parametro = parametro
+
+        if parametro == 'openAI':
+            # self.embedder = OpenAIEmbeddings(model="text-embedding-3-large")
+            self.embedder = OpenAIEmbeddings()
+
+        # elif parametro == 'sentenceTransformers':
+        #     self.embedder = SentenceTransformerEmbeddings('all-MiniLM-L6-v2')
+
+        elif parametro == 'bgeEmbedding':
+            model_name = "BAAI/bge-small-en-v1.5"
+            encode_kwargs = {'normalize_embeddings': True} # set True to compute cosine similarity
+
+            bge_embeddings = HuggingFaceBgeEmbeddings(
+                model_name=model_name,
+                model_kwargs={'device': 'cuda'},
+                encode_kwargs=encode_kwargs
+            )
+            self.embedder = bge_embeddings
+        # else:
+        #     self.embedder = self.default_method
+
+
 
 # Chroma vector DB
 class ChromaDBManager:
@@ -593,3 +623,7 @@ class LangChainAI:
         loader = WebBaseLoader(url)
         docs = loader.load()
         return docs
+
+    #parent document retriever
+    # https://github.com/azharlabs/medium/blob/main/notebooks/LangChain_RAG_Parent_Document_Retriever.ipynb?source=post_page-----5bd5c3474a8a--------------------------------
+    # def 
