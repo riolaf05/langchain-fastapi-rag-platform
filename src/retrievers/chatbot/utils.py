@@ -23,7 +23,6 @@ import os
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-#text splitter
 def run_chain(chain, prompt: str, history=[]):
   return chain({"question": prompt, "chat_history": history})
 
@@ -105,7 +104,7 @@ class TextSplitter:
             
         return final_texts
     
-    def create_langchain_documents(texts, metadata={"source": "local"}):
+    def create_langchain_documents(self, texts, metadata):
         final_docs=[]
         for doc in texts:
             final_docs.append(Document(page_content=doc, metadata=metadata))
@@ -167,15 +166,17 @@ class ChromaDBManager:
                     #replace it str
                     metadata_list[index][key] = str(metadata[key])
 
-    def retrieve_documents(collection, query, n_results=3):
+    def retrieve_documents(self, stored_collection, query, n_results=5):
         '''
         To run a similarity search, 
         you can use the query method of the collection.
         '''
+
+        query=query.content
         llm_documents = []
 
         #similarity search <- #TODO compare with Kendra ? 
-        res=collection.query(query_texts=[query], n_results=n_results)
+        res=stored_collection.query(query_texts=query, n_results=n_results)
 
         #create documents from collection
         documents=[document for document in res['documents'][0]]
@@ -392,7 +393,7 @@ class LangChainAI:
         '''
         model_name = self.chatbot_model
         llm = ChatOpenAI(model_name=model_name)
-        chain = load_qa_chain(llm, chain_type="stuff", verbose=False)
+        chain = load_qa_chain(llm, chain_type="stuff", verbose=True)
         return chain
     
     def create_kendra_retriever_chatbot_chain():

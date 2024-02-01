@@ -74,7 +74,7 @@ if True:
 
     username = 'test'
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI", "FEED RSS"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI", "FEED RSS", "IMAGES"])
 
     try: 
         USER_ID = dynamo_manager.get_item({"username": username})['Item']['username']
@@ -171,7 +171,7 @@ if True:
         option_2 = st.checkbox('Parafrasi')
         option_3 = st.checkbox('Embedding')
 
-        option = st.selectbox(
+        option_embedding = st.selectbox(
             "Tipo di embedding",
             ("Semantic", "Parent Document", "Fixed"),
             index=None,
@@ -228,8 +228,20 @@ if True:
 
                         #Create embeddings #FIXME: put it in async block ??? 
                         collection = dbClient.get_or_create_collection(COLLECTION_NAME)
-                        semantic_split_docs=textSplitter.split_text(string_input) #split semantically
-                        docs = textSplitter.create_langchain_documents(semantic_split_docs) #create langchain documents from array of text
+                        if option_embedding:
+                            if option_embedding == "Semantic":
+                                splitted_docs=textSplitter.split_text(string_input) #split semantically
+                            elif option_embedding == "Parent Document":
+                                #TODO
+                                splitted_docs=textSplitter.split_text(string_input) #split semantically
+                            elif option_embedding == "Fixed":
+                                #TODO
+                                splitted_docs=textSplitter.split_text(string_input) #split semantically
+
+
+                        breakpoint()
+                            
+                        docs = textSplitter.create_langchain_documents(splitted_docs, {"source": "local"}) #create langchain documents from array of text
                         dbClient.store_documents(collection=collection, docs=docs)
                         st.success("Embedding caricato con successo!")
                     
@@ -284,8 +296,8 @@ if True:
         # docs = langchain_client.webbaseloader_scrape(url)
 
         # #split 
-        # semantic_split_docs=textSplitter.split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
-        # split_docs = textSplitter.create_langchain_documents(semantic_split_docs)
+        # splitted_docs=textSplitter.split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
+        # split_docs = textSplitter.create_langchain_documents(splitted_docs)
 
         # #store
         # collection = dbClient.get_or_create_collection(COLLECTION_NAME)
@@ -350,6 +362,8 @@ if True:
             placeholder="Scegli i feed",
         )
 
+    with tab8: 
+        st.title("Multimodal video analysis")
 
 # else:
 #     st.error("Login fallito. Riprova.")

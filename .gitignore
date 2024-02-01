@@ -16,3 +16,4 @@ id_rsa
 **test/
 **.venv/
 storage/
+**.chainlit/
