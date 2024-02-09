@@ -323,7 +323,17 @@ class EmbeddingFunction:
         elif parametro == 'bgeEmbedding':
             model_name = "BAAI/bge-small-en-v1.5"
             encode_kwargs = {'normalize_embeddings': True} # set True to compute cosine similarity
+            bge_embeddings = HuggingFaceBgeEmbeddings(
+                model_name=model_name,
+                model_kwargs={'device': 'cuda'},
+                encode_kwargs=encode_kwargs
+            )
+            self.embedder = bge_embeddings
 
+
+        elif parametro == 'hkunlpEmbedding':
+            model_name = "hkunlp/instructor-large"
+            encode_kwargs = {'normalize_embeddings': True} # set True to compute cosine similarity
             bge_embeddings = HuggingFaceBgeEmbeddings(
                 model_name=model_name,
                 model_kwargs={'device': 'cuda'},
@@ -408,9 +418,66 @@ class ChromaDBManager:
         for i in range(len(documents)):
             doc=Document(page_content=documents[i], metadata=metadatas[i])
             llm_documents.append(doc)
-        return llm_documents
-    
-                    
+        return llm_documents                  
+
+
+
+# Qdrant
+import qdrant_client
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
+from langchain.vectorstores import Qdrant
+from langchain.indexes import index
+from langchain.indexes import SQLRecordManager
+
+class QDrantDBManager:
+    def __init__(self,
+                 url,
+                 port,
+                 collection_name,
+                 vector_size, #openAI embedding,
+                 embedding,
+                 record_manager_url,
+                 ):
+        self.url=url
+        self.port=port
+        self.collection_name=collection_name
+        self.vector_size=vector_size
+        self.embedding=embedding
+        self.client = QdrantClient(url, port=6333)
+        self.record_manager_url=record_manager_url
+
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.DOT)
+        )
+
+        self.vector_store = Qdrant(
+            client=self.client, 
+            collection_name=self.collection_name,
+            embeddings=embedding
+        )
+
+        self.record_manager = SQLRecordManager(
+            f"qdranrt/{self.collection_name}", 
+            db_url=record_manager_url,
+        )
+        self.record_manager.create_schema()
+        
+
+    def index_documents(self, docs, cleanup="full"):
+        '''
+        Takes splitted Langchain documents as input
+        Write data on QDrant and hashes on local SQL DB
+        '''
+        index(
+            docs,
+            self.record_manager,
+            self.vector_store,
+            cleanup=cleanup,
+            source_id_key="source"
+        )
+
 
 # LangChain
 class LangChainAI:
