@@ -12,6 +12,7 @@ from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain, SimpleSequentialChain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.document_loaders.blob_loaders.youtube_audio import YoutubeAudioLoader
@@ -194,8 +195,13 @@ class AWSLambda:
 # Spacy NLP
 class TextSplitter:
 
-    def __init__(self):
+    def __init__(self,
+                 chunk_size=2000,
+                 chunk_overlap=0
+                 ):
         self.nlp = spacy.load("it_core_news_sm")
+        self.chunk_size=chunk_size
+        self.chunk_overlap=chunk_overlap
 
     def process(self, text):
         doc = self.nlp(text)
@@ -217,7 +223,7 @@ class TextSplitter:
         # Add your text cleaning process here
         return text
         
-    def split_text(self, data, threshold=0.3):
+    def semantic_split_text(self, data, threshold=0.3):
         '''
         Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
         '''
@@ -269,11 +275,23 @@ class TextSplitter:
             
         return final_texts
     
-    def create_langchain_documents(texts, metadata={"source": "local"}):
+    def create_langchain_documents(self, texts, metadata):
         final_docs=[]
+        if type(texts) == str:
+            texts = [texts]
         for doc in texts:
             final_docs.append(Document(page_content=doc, metadata=metadata))
         return final_docs
+    
+    #fixed split
+    def fixed_split(self, data):
+        '''
+        Takes Langchain documents as input
+        Returns splitted documents
+        '''
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        docs = text_splitter.split_documents(data)
+        return docs
 
 # DynamoDB
 class DynamoDBManager:
@@ -342,7 +360,6 @@ class EmbeddingFunction:
             self.embedder = bge_embeddings
         # else:
         #     self.embedder = self.default_method
-
 
 
 # Chroma vector DB
@@ -447,10 +464,14 @@ class QDrantDBManager:
         self.client = QdrantClient(url, port=6333)
         self.record_manager_url=record_manager_url
 
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.DOT)
-        )
+        try:
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(size=vector_size, distance=Distance.DOT)
+            )
+        except Exception as e:
+            print(f"Collection {self.collection_name} already exists!")
+            pass
 
         self.vector_store = Qdrant(
             client=self.client, 
@@ -458,6 +479,7 @@ class QDrantDBManager:
             embeddings=embedding
         )
 
+        #create schema in metadata database 
         self.record_manager = SQLRecordManager(
             f"qdranrt/{self.collection_name}", 
             db_url=record_manager_url,
@@ -478,6 +500,32 @@ class QDrantDBManager:
             source_id_key="source"
         )
 
+# VertexAI + Gemini
+# See https://cloud.google.com/vertex-ai/docs/generative-ai/start/quickstarts/quickstart-multimodal
+# import vertexai
+# from vertexai.preview.generative_models import GenerativeModel, Part
+
+# class GeminiAI: 
+
+    
+#     def generate_text(project_id: str, location: str) -> str:
+#         # Initialize Vertex AI
+#         vertexai.init(project=project_id, location=location)
+#         # Load the model
+#         multimodal_model = GenerativeModel("gemini-pro-vision")
+#         # Query the model
+#         response = multimodal_model.generate_content(
+#             [
+#                 # Add an example image
+#                 Part.from_uri(
+#                     "gs://generativeai-downloads/images/scones.jpg", mime_type="image/jpeg"
+#                 ),
+#                 # Add an example query
+#                 "what is shown in this image?",
+#             ]
+#         )
+#         print(response)
+#         return response.text
 
 # LangChain
 class LangChainAI:

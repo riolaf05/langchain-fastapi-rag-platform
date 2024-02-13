@@ -5,7 +5,7 @@ import streamlit_authenticator as stauth
 from PIL import Image
 import os
 from dotenv import load_dotenv
-from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, ChromaDBManager, TextSplitter, EmbeddingFunction
+from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, ChromaDBManager, TextSplitter, EmbeddingFunction, QDrantDBManager
 import yaml
 from yaml.loader import SafeLoader
 # from trubrics.integrations.streamlit import FeedbackCollector
@@ -37,8 +37,17 @@ logging.basicConfig(level=logging.INFO)
 # UPLOAD_FOLDER = '/tmp' #on Linux/Docker
 UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
 SQS_URL = os.getenv('SQS_URL')
-dbClient = ChromaDBManager() 
+# chromaDbClient = ChromaDBManager() 
 textSplitter = TextSplitter()
+
+qdrantClient = QDrantDBManager(
+    url="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard",
+    port=6333,
+    collection_name="rag-platform",
+    vector_size=1536,
+    embedding=EmbeddingFunction('openAI').embedder,
+    record_manager_url="sqlite:///record_manager_cache.sql"
+)
 
 # Configurazione della pagina Streamlit
 # st.set_page_config(page_title="Riassume: l'AI a supporto degli studenti", page_icon=":memo:", layout="wide")
@@ -207,7 +216,7 @@ if True:
 
                     if option_1:
                         #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
-                        response = langchain_client.summarize_text(string_input) #TODO: portare fuori split_text!!
+                        response = langchain_client.summarize_text(string_input) #TODO: portare fuori semantic_split_text!!
                         with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
                             f.write(response)
 
@@ -224,25 +233,26 @@ if True:
                             #TODO
 
                     if option_3:
-                        
-
-                        #Create embeddings #FIXME: put it in async block ??? 
-                        collection = dbClient.get_or_create_collection(COLLECTION_NAME)
-                        if option_embedding:
-                            if option_embedding == "Semantic":
-                                splitted_docs=textSplitter.split_text(string_input) #split semantically
-                            elif option_embedding == "Parent Document":
-                                #TODO
-                                splitted_docs=textSplitter.split_text(string_input) #split semantically
-                            elif option_embedding == "Fixed":
-                                #TODO
-                                splitted_docs=textSplitter.split_text(string_input) #split semantically
-
 
                         breakpoint()
+                        
+                        #Create embeddings #FIXME: put it in async block ??? 
+                        # collection = chromaDbClient.get_or_create_collection(COLLECTION_NAME)
+                        if option_embedding:
+                            if option_embedding == "Semantic":
+                                splitted_docs=textSplitter.semantic_split_text(string_input) #split semantically
+                                docs = textSplitter.create_langchain_documents(splitted_docs, {"source": "text"}) #create langchain documents from array of text
+                            elif option_embedding == "Parent Document":
+                                #TODO
+                                docs=[]
+                            elif option_embedding == "Fixed":
+                                docs = textSplitter.create_langchain_documents(string_input, {"source": "text"}) #create langchain documents from array of text
+                                docs=textSplitter.fixed_split(docs) #fixed split
+
                             
-                        docs = textSplitter.create_langchain_documents(splitted_docs, {"source": "local"}) #create langchain documents from array of text
-                        dbClient.store_documents(collection=collection, docs=docs)
+                        # chromaDbClient.store_documents(collection=collection, docs=docs)
+                        qdrantClient.index_documents(docs)
+
                         st.success("Embedding caricato con successo!")
                     
                     
@@ -296,12 +306,12 @@ if True:
         # docs = langchain_client.webbaseloader_scrape(url)
 
         # #split 
-        # splitted_docs=textSplitter.split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
+        # splitted_docs=textSplitter.semantic_split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
         # split_docs = textSplitter.create_langchain_documents(splitted_docs)
 
         # #store
-        # collection = dbClient.get_or_create_collection(COLLECTION_NAME)
-        # dbClient.store_documents(collection=collection, docs=split_docs)
+        # collection = chromaDbClient.get_or_create_collection(COLLECTION_NAME)
+        # chromaDbClient.store_documents(collection=collection, docs=split_docs)
 
         # logger.info("Web scraping completed...")
         # st.success("Pagina web letta con successo!")
