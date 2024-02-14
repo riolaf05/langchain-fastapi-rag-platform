@@ -23,7 +23,7 @@ JOB_URI="s3://riassume-transcribe-bucket/"
 S3_BUCKET='riassume-transcribe-bucket'
 COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
 COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
-COLLECTION_NAME="media-chat-service"
+COLLECTION_NAME="rio-rag-platform"
 table_name = "chatgpt-summary-users"
 langchain_client = LangChainAI()
 s3_client=AWSS3('riassume-document-bucket')
@@ -43,7 +43,7 @@ textSplitter = TextSplitter()
 qdrantClient = QDrantDBManager(
     url="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard",
     port=6333,
-    collection_name="rag-platform",
+    collection_name=COLLECTION_NAME,
     vector_size=1536,
     embedding=EmbeddingFunction('openAI').embedder,
     record_manager_url="sqlite:///record_manager_cache.sql"
@@ -251,7 +251,11 @@ if True:
 
                             
                         # chromaDbClient.store_documents(collection=collection, docs=docs)
-                        qdrantClient.index_documents(docs)
+                        try:
+                            qdrantClient.index_documents(docs)
+                        except Exception as e:
+                            logger.error(e)
+                            st.error("Errore durante l'embedding. Connessione al DB fallita.")
 
                         st.success("Embedding caricato con successo!")
                     
