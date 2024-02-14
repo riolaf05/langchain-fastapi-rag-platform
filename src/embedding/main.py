@@ -18,25 +18,27 @@ from decimal import Decimal
 from streamlit_cognito_auth import CognitoAuthenticator #https://github.com/pop-srw/streamlit-cognito-auth
 # import subprocess
 
-lang="ITA"
+
 JOB_URI="s3://riassume-transcribe-bucket/"
 S3_BUCKET='riassume-transcribe-bucket'
 COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
 COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
 COLLECTION_NAME="rio-rag-platform"
-table_name = "chatgpt-summary-users"
+# UPLOAD_FOLDER = '/tmp' #on Linux
+UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
+SQS_URL = os.getenv('SQS_URL')
+
+lang="ITA"
+dynamodb_table_name = "chatgpt-summary-users"
 langchain_client = LangChainAI()
 s3_client=AWSS3('riassume-document-bucket')
 conn = st.experimental_connection('s3', type=FilesConnection)
 transcribe_s3client = AWSS3(S3_BUCKET)
 transcribe = AWSTranscribe(JOB_URI)
 textract = AWSTexttract()
-dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), table_name)
+dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), dynamodb_table_name)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-# UPLOAD_FOLDER = '/tmp' #on Linux/Docker
-UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
-SQS_URL = os.getenv('SQS_URL')
 # chromaDbClient = ChromaDBManager() 
 textSplitter = TextSplitter()
 
@@ -52,11 +54,31 @@ qdrantClient = QDrantDBManager(
 # Configurazione della pagina Streamlit
 # st.set_page_config(page_title="Riassume: l'AI a supporto degli studenti", page_icon=":memo:", layout="wide")
 
-def speech_to_text(job_name, lang_code):
+def speech_to_text(job_name, language_code):
     job_name=transcribe.generate_job_name()
-    data = transcribe.amazon_transcribe(JOB_URI, job_name, uploaded_mp3.name, lang_code)
+    data = transcribe.amazon_transcribe(JOB_URI, job_name, uploaded_mp3.name, language_code)
     logger.info("File audio transcribed!")
     return data
+
+def read_pdf(file):
+    '''
+    Takes a file in input and return the read text
+    '''
+    text_input = []
+    if file.type == "application/pdf":
+        pdf_reader = PdfFileReader(file)
+        for page in pdf_reader.pages:
+            text = page.extractText()
+            text_input.append(text.replace('\n', ' '))
+    elif file.type == "image/jpeg" or file.type == "image/png" or file.type == "image/jpg":             
+        img1 = Image.open(file)
+        rgb_im = img1.convert('RGB') #to convert png to jpg
+        text = textract.get_text(rgb_im).replace('\n', ' ')
+        text_input.append(text.replace('\n', ' '))
+    else:
+        st.write("Formato non supportato.")
+    return text_input
+    
 
 def dynamodb_update_counter(username):
     get_key = {
@@ -172,49 +194,40 @@ if True:
 
     with tab2:
 
+        st.title("Benvenuto, " + username + "!")
+
         ########### Riasusmi da un libro ###########
         st.title("Lettura documenti (TXT, PDF, etc.)")
 
         st.write('Cosa vuoi fare?')
-        option_1 = st.checkbox('Riassunto')
-        option_2 = st.checkbox('Parafrasi')
-        option_3 = st.checkbox('Embedding')
+        option_1 = st.checkbox('Embedding')
+        option_2 = st.checkbox('Riassunto')
+        option_3 = st.checkbox('Parafrasi')
+        
 
         option_embedding = st.selectbox(
-            "Tipo di embedding",
-            ("Semantic", "Parent Document", "Fixed"),
+            "Scegli la strategia di embedding",
+            ("Fixed", "Parent Document", "Semantic"),
             index=None,
-            placeholder="Seleziona tipo di embedding...",
+            placeholder="Seleziona strategia di embedding...",
             )
 
         # Definizione dell'area di drag and drop
-        uploaded_files = st.file_uploader("Carica i file qui", type=["jpg", "png", "pdf"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Carica i file qui", type=["pdf"], accept_multiple_files=True)
 
-        #Elabora i file caricati tramite openai
+        #Lettura PDF
         if st.button("Elabora i file testuali"):
             if uploaded_files is not None:
                 with st.spinner('Elaborazione, per favore attendi...'):
-                    text_input = []
+                
                     for file in uploaded_files:
                         filename= file.name
-                        if file.type == "application/pdf":
-                            pdf_reader = PdfFileReader(file)
-                            for page in pdf_reader.pages:
-                                text = page.extractText()
-                                text_input.append(text.replace('\n', ' '))
-                        elif file.type == "image/jpeg" or file.type == "image/png" or file.type == "image/jpg":             
-                            img1 = Image.open(file)
-                            rgb_im = img1.convert('RGB') #to convert png to jpg
-                            text = textract.get_text(rgb_im).replace('\n', ' ')
-                            text_input.append(text.replace('\n', ' '))
-                        
-                        else:
-                            st.write("Formato non supportato.")
-                    
+                        text_input=read_pdf(file)
+                                            
                     #Salva response
                     string_input=" ".join(text_input) #join the array in a single string (summarize_text vuole una string in input)
 
-                    if option_1:
+                    if option_2:
                         #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
                         response = langchain_client.summarize_text(string_input) #TODO: portare fuori semantic_split_text!!
                         with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
@@ -229,12 +242,10 @@ if True:
                         ## Update user counter on DynamoDB
                         dynamodb_update_counter(username)
 
-                    # if option_2:
+                    # if option_3:
                             #TODO
 
-                    if option_3:
-
-                        breakpoint()
+                    if option_1:
                         
                         #Create embeddings #FIXME: put it in async block ??? 
                         # collection = chromaDbClient.get_or_create_collection(COLLECTION_NAME)
@@ -249,9 +260,8 @@ if True:
                                 docs = textSplitter.create_langchain_documents(string_input, {"source": "text"}) #create langchain documents from array of text
                                 docs=textSplitter.fixed_split(docs) #fixed split
 
-                            
-                        # chromaDbClient.store_documents(collection=collection, docs=docs)
                         try:
+                            # chromaDbClient.store_documents(collection=collection, docs=docs)
                             qdrantClient.index_documents(docs)
                         except Exception as e:
                             logger.error(e)
@@ -305,6 +315,8 @@ if True:
 
     with tab3:
 
+        st.title("Benvenuto, " + username + "!")
+
         st.write("Inserisci l'url della pagina web da leggere")
         # url = st.text_input('URL del video', "")
         # docs = langchain_client.webbaseloader_scrape(url)
@@ -320,11 +332,10 @@ if True:
         # logger.info("Web scraping completed...")
         # st.success("Pagina web letta con successo!")
 
-
     with tab4:
         st.title("Benvenuto, " + username + "!")
 
-        ########### Riasusmi da un video online ###########
+        ########### Riasusmi dal testo di un video online ###########
         with st.form("my_form"):
             st.write("Inserisci l'url di un video con cui chattare")
             url = st.text_input('URL del video', "")
@@ -352,9 +363,16 @@ if True:
                     st.success("Trascrizione video carica con successo!")
                    
     with tab5:
+
+        st.title("Benvenuto, " + username + "!")
+
         st.write("COMING SOON")
 
     with tab6:
+
+        st.title("Benvenuto, " + username + "!")
+
+        ##### CONTENUTI CARICATI ######
         list_contents=s3_client.list_items(username)
         for content in list_contents:
             st.header(s3_client.read_metadata(content['Key'], 'name').replace(username+"/", ''))
@@ -364,6 +382,9 @@ if True:
 
     with tab7:
 
+        st.title("Benvenuto, " + username + "!")
+
+        #### FEED RSS #######
         feeds=[] #TODO: retrieve current feed from DynamoDB
 
         new_element = st.text_input("Inserisci un url")
@@ -376,7 +397,13 @@ if True:
             placeholder="Scegli i feed",
         )
 
+        #store feed url on DynamoDB
+        # for feed in selected_job_titles:
+        #     dynamodb_update_feed(username, feed)
+
     with tab8: 
+
+        st.title("Benvenuto, " + username + "!")
         st.title("Multimodal video analysis")
 
 # else:
