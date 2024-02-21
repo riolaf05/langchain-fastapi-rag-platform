@@ -12,11 +12,10 @@ __pycache__
 id_rsa
 **.mp3
 **.mp4
-**layer/
 **test/
 **.venv/
 storage/
 **.chainlit/
 **.sql
 cred/
-.infrastructure/layer/package/
+infrastructure/layers/*/python/
