@@ -314,34 +314,36 @@ if True:
 
     with tab3:
 
+        #TODO CREARE MANUALMENTE LE TABELLE DYNAMO DB, CREARE L'IAC PER LE TABELLE!!
+
         st.title("Benvenuto, " + username + "!")
 
-        # #### PAGINE WEB #######
-        # dynamodb_feed_manager = DynamoDBManager(os.getenv('AWS_REGION'), "rio-rag-webpages-table")
-        # get_key={"title": "webpages"}
-        # feed_list=dynamodb_feed_manager.get_item(get_key)['Item']['feeds']
+        #### PAGINE WEB #######
+        dynamodb_feed_manager = DynamoDBManager(os.getenv('AWS_REGION'), "rio-rag-webpages-table")
+        get_key={"title": "web"}
+        feed_list=dynamodb_feed_manager.get_item(get_key)['Item']['webpages']
 
-        # st.write("Inserisci una pagina web")
-        # new_feed_url = st.text_input("Inserisci un url")
-        # if st.button("Salva", key="1"):
-        #     update_expression = "SET webpages = :new_value"
-        #     # feed_list=
-        #     feed_list.append(new_feed_url)
-        #     expression_values = {":new_value": feed_list}
-        #     dynamodb_feed_manager.update_item(get_key, update_expression, expression_values)
-        #     st.success("Aggiunto")
+        st.write("Inserisci una pagina web")
+        new_web_page_url = st.text_input("Inserisci un url", key="5")
+        if st.button("Salva", key="3"):
+            update_expression = "SET webpages = :new_value"
+            # feed_list=
+            feed_list.append(new_web_page_url)
+            expression_values = {":new_value": feed_list}
+            dynamodb_feed_manager.update_item(get_key, update_expression, expression_values)
+            st.success("Aggiunto")
 
-        # st.write("Elabora pagina eb")
-        # if feed_list :
-        #     option = st.selectbox(
-        #         'Seleziona una pagina web da inserire..',
-        #          feed_list)
+        st.write("Elabora pagina eb")
+        if feed_list :
+            option = st.selectbox(
+                'Seleziona una pagina web da inserire..',
+                 feed_list)
 
-        #     if st.button("Elabora", key="2"):
-        #         with st.spinner('Elaborazione, per favore attendi...'):
-        #             splitted_docs = langchain_client.rss_loader(option)
-        #             qdrantClient.index_documents(splitted_docs)
-        #             st.success("Pagina web elaborata con successo!")
+            if st.button("Elabora", key="4"):
+                with st.spinner('Elaborazione, per favore attendi...'):
+                    splitted_docs = langchain_client.webpage_loader(option)
+                    qdrantClient.index_documents(splitted_docs)
+                    st.success("Pagina web elaborata con successo!")
 
     with tab4:
         st.title("Benvenuto, " + username + "!")

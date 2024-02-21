@@ -20,12 +20,12 @@ from langchain.document_loaders.generic import GenericLoader
 from langchain.document_loaders.parsers.audio import OpenAIWhisperParser, OpenAIWhisperParserLocal
 from langchain.docstore.document import Document
 from langchain.chains.question_answering import load_qa_chain
-from langchain.document_loaders import WebBaseLoader
 from langchain.retrievers import ParentDocumentRetriever
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.document_loaders import RSSFeedLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import WebBaseLoader
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
@@ -204,7 +204,11 @@ class TextSplitter:
         self.nlp = spacy.load("it_core_news_sm")
         self.chunk_size=chunk_size
         self.chunk_overlap=chunk_overlap
-        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            separators=["\n\n", "\n", " "],
+            chunk_size=self.chunk_size, 
+            chunk_overlap=self.chunk_overlap
+            )
 
     def process(self, text):
         doc = self.nlp(text)
@@ -490,7 +494,7 @@ class QDrantDBManager:
 
     def index_documents(self, docs, cleanup="full"):
         '''
-        Takes splitted Langchain documents as input
+        Takes splitted Langchain list of documents as input
         Write data on QDrant and hashes on local SQL DB
         '''
         index(
@@ -733,18 +737,24 @@ class LangChainAI:
         chain = load_qa_chain(llm, chain_type="stuff", verbose=False)
         return chain
     
-    #web
-    def webbaseloader_scrape(self, url):
-        loader = WebBaseLoader(url)
-        docs = loader.load()
-        return docs
-    
     def filter_datetime_metadata(self, docs):
+        '''
+        Takes a list of documents in input
+        '''
         for doc in docs:
             doc.metadata['source'] = 'rss'
             if isinstance(doc.metadata['publish_date'], datetime.datetime):
                 # print(doc.metadata['publish_date'])
                 doc.metadata['publish_date'] = doc.metadata['publish_date'].strftime("%Y-%m-%d")
+
+    def filter_newline_content(self, docs):
+        '''
+        Takes a list of documents in input
+        '''
+        for doc in docs:
+            doc.page_content = doc.page_content.replace('\n', ' ')
+            doc.metadata['source'] = 'html'
+        return docs
     
     def rss_loader(self, feed):
         splitted_docs=[]
@@ -757,6 +767,17 @@ class LangChainAI:
         self.filter_datetime_metadata(splitted_docs[0])
         logging.info("RSS scraping completed...scraped {} documents".format(len(splitted_docs[0])))
         return splitted_docs[0]
+    
+    def webpage_loader(self, url):
+        splitted_docs=[]
+        loader = WebBaseLoader(url)
+        data = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", " "],chunk_size=2000, chunk_overlap=0) #FIXME
+        for doc in data: 
+            splitted_docs.append(text_splitter.split_documents(data))
+        self.filter_newline_content(splitted_docs[0])
+        logging.info("Web pages scraping completed...scraped {} documents".format(len(splitted_docs[0])))
+        return data
                 
 
     #parent document retriever
