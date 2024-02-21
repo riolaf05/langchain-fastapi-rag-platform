@@ -1,3 +1,5 @@
+Flask
+gunicorn
 openai==0.28.1
 PyPDF2~=2.0
 numpy==1.26.0
