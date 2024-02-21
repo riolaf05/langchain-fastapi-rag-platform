@@ -77,8 +77,7 @@ def read_pdf(file):
         text_input.append(text.replace('\n', ' '))
     else:
         st.write("Formato non supportato.")
-    return text_input
-    
+    return text_input 
 
 def dynamodb_update_counter(username):
     get_key = {
@@ -317,20 +316,32 @@ if True:
 
         st.title("Benvenuto, " + username + "!")
 
-        st.write("Inserisci l'url della pagina web da leggere")
-        # url = st.text_input('URL del video', "")
-        # docs = langchain_client.webbaseloader_scrape(url)
+        # #### PAGINE WEB #######
+        # dynamodb_feed_manager = DynamoDBManager(os.getenv('AWS_REGION'), "rio-rag-webpages-table")
+        # get_key={"title": "webpages"}
+        # feed_list=dynamodb_feed_manager.get_item(get_key)['Item']['feeds']
 
-        # #split 
-        # splitted_docs=textSplitter.semantic_split_text(docs[0].page_content) #NOTE: webbase loader produces 1 doc!!
-        # split_docs = textSplitter.create_langchain_documents(splitted_docs)
+        # st.write("Inserisci una pagina web")
+        # new_feed_url = st.text_input("Inserisci un url")
+        # if st.button("Salva", key="1"):
+        #     update_expression = "SET webpages = :new_value"
+        #     # feed_list=
+        #     feed_list.append(new_feed_url)
+        #     expression_values = {":new_value": feed_list}
+        #     dynamodb_feed_manager.update_item(get_key, update_expression, expression_values)
+        #     st.success("Aggiunto")
 
-        # #store
-        # collection = chromaDbClient.get_or_create_collection(COLLECTION_NAME)
-        # chromaDbClient.store_documents(collection=collection, docs=split_docs)
+        # st.write("Elabora pagina eb")
+        # if feed_list :
+        #     option = st.selectbox(
+        #         'Seleziona una pagina web da inserire..',
+        #          feed_list)
 
-        # logger.info("Web scraping completed...")
-        # st.success("Pagina web letta con successo!")
+        #     if st.button("Elabora", key="2"):
+        #         with st.spinner('Elaborazione, per favore attendi...'):
+        #             splitted_docs = langchain_client.rss_loader(option)
+        #             qdrantClient.index_documents(splitted_docs)
+        #             st.success("Pagina web elaborata con successo!")
 
     with tab4:
         st.title("Benvenuto, " + username + "!")
@@ -385,21 +396,32 @@ if True:
         st.title("Benvenuto, " + username + "!")
 
         #### FEED RSS #######
-        feeds=[] #TODO: retrieve current feed from DynamoDB
+        dynamodb_feed_manager = DynamoDBManager(os.getenv('AWS_REGION'), "rio-rag-feed-table")
+        get_key={"title": "feed_rss"}
+        feed_list=dynamodb_feed_manager.get_item(get_key)['Item']['feeds']
 
-        new_element = st.text_input("Inserisci un url")
-        feeds.append(new_element)
+        st.write("Inserisci un nuovo feed")
+        new_feed_url = st.text_input("Inserisci un url")
+        if st.button("Salva", key="1"):
+            st.write('Why hello there')
+            update_expression = "SET feeds = :new_value"
+            # feed_list=
+            feed_list.append(new_feed_url)
+            expression_values = {":new_value": feed_list}
+            dynamodb_feed_manager.update_item(get_key, update_expression, expression_values)
+            st.success("Aggiunto")
 
-        selected_job_titles = st.multiselect(
-        label="urls",
-            options=feeds,
-            default=None,
-            placeholder="Scegli i feed",
-        )
+        st.write("Elabora feed")
+        if feed_list :
+            option = st.selectbox(
+                'Seleziona un feed dal quale leggere i dati..',
+                 feed_list)
 
-        #store feed url on DynamoDB
-        # for feed in selected_job_titles:
-        #     dynamodb_update_feed(username, feed)
+            if st.button("Elabora", key="2"):
+                with st.spinner('Elaborazione, per favore attendi...'):
+                    splitted_docs = langchain_client.rss_loader(option)
+                    qdrantClient.index_documents(splitted_docs)
+                    st.success("Feed elaborato con successo!")
 
     with tab8: 
 

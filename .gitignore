@@ -18,3 +18,5 @@ id_rsa
 storage/
 **.chainlit/
 **.sql
+cred/
+.infrastructure/layer/package/

@@ -24,6 +24,8 @@ from langchain.document_loaders import WebBaseLoader
 from langchain.retrievers import ParentDocumentRetriever
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.document_loaders import RSSFeedLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
@@ -202,6 +204,7 @@ class TextSplitter:
         self.nlp = spacy.load("it_core_news_sm")
         self.chunk_size=chunk_size
         self.chunk_overlap=chunk_overlap
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
 
     def process(self, text):
         doc = self.nlp(text)
@@ -289,8 +292,7 @@ class TextSplitter:
         Takes Langchain documents as input
         Returns splitted documents
         '''
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
-        docs = text_splitter.split_documents(data)
+        docs = self.text_splitter.split_documents(data)
         return docs
 
 # DynamoDB
@@ -438,7 +440,6 @@ class ChromaDBManager:
         return llm_documents                  
 
 
-
 # Qdrant
 import qdrant_client
 from qdrant_client import QdrantClient
@@ -555,8 +556,7 @@ class LangChainAI:
         Splitting the documents into chunks of text
         converting them into a list of documents
         '''
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
-        docs = text_splitter.create_documents(documents)
+        docs = self.text_splitter.create_documents(documents)
         # docs = text_splitter.split_documents(documents)
         return docs
     
@@ -734,10 +734,30 @@ class LangChainAI:
         return chain
     
     #web
-    def webbaseloader_scrape(url):
+    def webbaseloader_scrape(self, url):
         loader = WebBaseLoader(url)
         docs = loader.load()
         return docs
+    
+    def filter_datetime_metadata(self, docs):
+        for doc in docs:
+            doc.metadata['source'] = 'rss'
+            if isinstance(doc.metadata['publish_date'], datetime.datetime):
+                # print(doc.metadata['publish_date'])
+                doc.metadata['publish_date'] = doc.metadata['publish_date'].strftime("%Y-%m-%d")
+    
+    def rss_loader(self, feed):
+        splitted_docs=[]
+        urls = [feed] #TODO: change for multiple?
+        loader = RSSFeedLoader(urls=urls)
+        data = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=0) #FIXME
+        for doc in data: 
+            splitted_docs.append(text_splitter.split_documents(data))
+        self.filter_datetime_metadata(splitted_docs[0])
+        logging.info("RSS scraping completed...scraped {} documents".format(len(splitted_docs[0])))
+        return splitted_docs[0]
+                
 
     #parent document retriever
     # https://github.com/azharlabs/medium/blob/main/notebooks/LangChain_RAG_Parent_Document_Retriever.ipynb?source=post_page-----5bd5c3474a8a--------------------------------

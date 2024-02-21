@@ -7,6 +7,8 @@ httptools
 # uvloop
 boto3==1.28.17
 langchain==0.1.5
+langchain_experimental
+langchain_openai
 requests==2.31.0
 trubrics[streamlit]
 streamlit==1.27.0
@@ -29,3 +31,8 @@ bitsandbytes==0.41.1
 
 # llava-torch==1.1.1
 qdrant-client==1.7.3
+git+https://github.com/openai/whisper.git -q
+pytube
+
+google-cloud-vision
+google-cloud-storage

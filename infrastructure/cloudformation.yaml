@@ -5,7 +5,7 @@ Parameters:
   BucketName:
     Type: String
     Description: Prefix of resources
-    Default: 'rio-rag-platform-data'
+    Default: 'rio-rag-platform-documents'
 
 Resources:
   E2ERAGFileUploadedSQS:
@@ -61,6 +61,15 @@ Resources:
                 aws:SourceAccount: !Ref AWS::AccountId
       Queues:
         - !Ref E2ERAGFileUploadedSQS
+
+  LangchainLayer:
+    Type: Custom::PipLayer
+    Properties:
+      ServiceToken: !GetAtt LiveIndexingLambdaFunction.Arn
+      # Region: !Ref AWS::Region
+      LayerName: langchainLayer
+      Packages:
+        - langchain
 
 
   # LiveIndexingLambdaFunction:
