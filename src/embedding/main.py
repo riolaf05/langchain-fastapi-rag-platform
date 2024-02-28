@@ -4,6 +4,7 @@ import streamlit_authenticator as stauth
 # import json
 from PIL import Image
 import os
+import platform
 from dotenv import load_dotenv
 from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, ChromaDBManager, TextSplitter, EmbeddingFunction, QDrantDBManager
 import yaml
@@ -25,8 +26,7 @@ COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
 COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
 QDRANT_URL="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard"
 COLLECTION_NAME="rio-rag-platform"
-# UPLOAD_FOLDER = '/tmp' #on Linux
-UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
+UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" if platform.system()=='Windows' else '/tmp' 
 SQS_URL = os.getenv('SQS_URL')
 
 lang="ITA"
