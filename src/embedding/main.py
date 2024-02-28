@@ -214,7 +214,7 @@ if True:
         # Definizione dell'area di drag and drop
         uploaded_files = st.file_uploader("Carica i file qui", type=["pdf"], accept_multiple_files=True)
 
-        #Lettura PDF
+        #1. Lettura PDF
         if st.button("Elabora i file testuali"):
             if uploaded_files is not None:
                 with st.spinner('Elaborazione, per favore attendi...'):
@@ -225,6 +225,10 @@ if True:
                                             
                     #Salva response
                     string_input=" ".join(text_input) #join the array in a single string (summarize_text vuole una string in input)
+
+                    breakpoint()
+
+                    #2. ELABORAZIONE
 
                     if option_2:
                         #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
@@ -333,7 +337,7 @@ if True:
             dynamodb_feed_manager.update_item(get_key, update_expression, expression_values)
             st.success("Aggiunto")
 
-        st.write("Elabora pagina eb")
+        st.write("Elabora pagina web")
         if feed_list :
             option = st.selectbox(
                 'Seleziona una pagina web da inserire..',

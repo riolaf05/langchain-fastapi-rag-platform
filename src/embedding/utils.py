@@ -496,6 +496,12 @@ class QDrantDBManager:
         '''
         Takes splitted Langchain list of documents as input
         Write data on QDrant and hashes on local SQL DB
+
+        When content is mutated (e.g., the source PDF file was revised) there will be a period of time during indexing when both the new and old versions may be returned to the user. 
+        This happens after the new content was written, but before the old version was deleted.
+
+        * incremental indexing minimizes this period of time as it is able to do clean up continuously, as it writes.
+        * full mode does the clean up after all batches have been written.
         '''
         index(
             docs,
