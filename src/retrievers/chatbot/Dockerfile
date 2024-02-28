@@ -16,7 +16,7 @@ RUN pip3 install -r requirements.txt
 
 EXPOSE 8501
 
-COPY ./chatbot/main.py main.py
+COPY main.py main.py
 COPY certs certs
 
 #for normal deploy
