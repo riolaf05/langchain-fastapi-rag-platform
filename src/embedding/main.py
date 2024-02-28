@@ -23,6 +23,7 @@ JOB_URI="s3://riassume-transcribe-bucket/"
 S3_BUCKET='riassume-transcribe-bucket'
 COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
 COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
+QDRANT_URL="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard"
 COLLECTION_NAME="rio-rag-platform"
 # UPLOAD_FOLDER = '/tmp' #on Linux
 UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" #on Winzozz
@@ -43,7 +44,7 @@ logging.basicConfig(level=logging.INFO)
 textSplitter = TextSplitter()
 
 qdrantClient = QDrantDBManager(
-    url="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard",
+    url=QDRANT_URL,
     port=6333,
     collection_name=COLLECTION_NAME,
     vector_size=1536,
@@ -90,19 +91,20 @@ def dynamodb_update_counter(username):
     dynamo_manager.update_item(get_key, update_expression, expression_values)
 
 
-### Cognito login #FIXME
-# authenticator = CognitoAuthenticator(
-#     pool_id=COGNITO_USER_POOL,
-#     app_client_id=COGNITO_CLIENT_ID,
-# )
-# is_logged_in = authenticator.login()
-# username = authenticator.get_username()
+### Cognito login 
+authenticator = CognitoAuthenticator(
+    pool_id=COGNITO_USER_POOL,
+    app_client_id=COGNITO_CLIENT_ID,
+)
+is_logged_in = authenticator.login()
+username = authenticator.get_username()
 
-# # Inizio pagina
-# if is_logged_in == True:
-if True:
+# With Cognito login
+if is_logged_in == True:
 
-    username = 'test'
+# #With no Cognito login
+# if True:
+    # username = 'test'
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["AUDIO", "TESTO", "WEB", "VIDEO", "CHAT", "I MIEI RIASSUNTI", "FEED RSS", "IMAGES"])
 
