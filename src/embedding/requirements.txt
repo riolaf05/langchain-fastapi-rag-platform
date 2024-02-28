@@ -23,7 +23,7 @@ streamlit_cognito_auth
 yt_dlp
 pydub
 librosa
-chromadb
+# chromadb
 torch==2.1
 transformers==4.34.1
 accelerate==0.26.1
@@ -31,8 +31,8 @@ bitsandbytes==0.41.1
 
 # llava-torch==1.1.1
 qdrant-client==1.7.3
-git+https://github.com/openai/whisper.git
+# git+https://github.com/openai/whisper.git
 pytube
 
-google-cloud-vision
-google-cloud-storage
+# google-cloud-vision
+# google-cloud-storage
