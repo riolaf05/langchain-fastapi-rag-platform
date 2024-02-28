@@ -14,7 +14,7 @@ trubrics[streamlit]
 streamlit==1.27.0
 streamlit_authenticator==0.2.3
 spacy==3.6.1
-tiktoken==0.5.1
+tiktoken
 mutagen==1.47.0
 func_timeout==4.3.5
 s3fs==2023.9.2
