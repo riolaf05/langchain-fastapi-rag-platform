@@ -58,9 +58,9 @@ jobs:
           name: Build and push Docker image
           command: |
             cd src/servers/
-            docker build -t $DOCKER_LOGIN/rag-platform-job:<< pipeline.git.branch >> -f Dockerfile .
+            docker build -t $DOCKER_LOGIN/rag-platform-server:<< pipeline.git.branch >> -f Dockerfile .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
-            docker push $DOCKER_LOGIN/rag-platform-job:<< pipeline.git.branch >>
+            docker push $DOCKER_LOGIN/rag-platform-server:<< pipeline.git.branch >>
 
 
 # Invoke jobs via workflows
