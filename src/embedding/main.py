@@ -6,7 +6,7 @@ from PIL import Image
 import os
 import platform
 from dotenv import load_dotenv
-from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, ChromaDBManager, TextSplitter, EmbeddingFunction, QDrantDBManager
+from utils import AWSTexttract, LangChainAI, AWSS3, AWSTranscribe, DynamoDBManager, TextSplitter, EmbeddingFunction, QDrantDBManager
 import yaml
 from yaml.loader import SafeLoader
 # from trubrics.integrations.streamlit import FeedbackCollector
@@ -20,15 +20,19 @@ from streamlit_cognito_auth import CognitoAuthenticator #https://github.com/pop-
 # import subprocess
 
 
-JOB_URI="s3://riassume-transcribe-bucket/"
-S3_BUCKET='riassume-transcribe-bucket'
-COGNITO_USER_POOL='us-east-1_2gJgqtGK3'
-COGNITO_CLIENT_ID='1hbdf29bl3goifqovdsga02kov'
-QDRANT_URL="http://ec2-18-209-145-26.compute-1.amazonaws.com:6333/dashboard"
-COLLECTION_NAME="rio-rag-platform"
+### VARIABLES #####
+JOB_URI=os.getenv('JOB_URI')
+S3_BUCKET=os.getenv('S3_BUCKET')
+COGNITO_USER_POOL=os.getenv('COGNITO_USER_POOL')
+COGNITO_CLIENT_ID=os.getenv('COGNITO_CLIENT_ID')
+QDRANT_URL=os.getenv('QDRANT_URL')
+COLLECTION_NAME=os.getenv('COLLECTION_NAME')
 UPLOAD_FOLDER = r"C:\Users\ELAFACRB1\Codice\GitHub\chatgpt-summmary\uploads" if platform.system()=='Windows' else '/tmp' 
 SQS_URL = os.getenv('SQS_URL')
+### END VARIABLES #####
 
+
+### INITIALIZATION #####
 lang="ITA"
 dynamodb_table_name = "chatgpt-summary-users"
 langchain_client = LangChainAI()
@@ -51,10 +55,15 @@ qdrantClient = QDrantDBManager(
     embedding=EmbeddingFunction('openAI').embedder,
     record_manager_url="sqlite:///record_manager_cache.sql"
 )
+### END INITIALIZATION #####
+
+
 
 # Configurazione della pagina Streamlit
 # st.set_page_config(page_title="Riassume: l'AI a supporto degli studenti", page_icon=":memo:", layout="wide")
 
+
+### UTILS
 def speech_to_text(job_name, language_code):
     job_name=transcribe.generate_job_name()
     data = transcribe.amazon_transcribe(JOB_URI, job_name, uploaded_mp3.name, language_code)
@@ -89,7 +98,7 @@ def dynamodb_update_counter(username):
         ":new_counter": dynamo_manager.get_item(get_key)['Item']['n_images']+1
     }
     dynamo_manager.update_item(get_key, update_expression, expression_values)
-
+### END UTILS
 
 ### Cognito login 
 authenticator = CognitoAuthenticator(
@@ -225,13 +234,10 @@ if is_logged_in == True:
                         filename= file.name
                         text_input=read_pdf(file)
                                             
-                    #Salva response
+                    #Save response
                     string_input=" ".join(text_input) #join the array in a single string (summarize_text vuole una string in input)
 
-                    breakpoint()
-
-                    #2. ELABORAZIONE
-
+                    #2. ELABORATION
                     if option_2:
                         #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
                         response = langchain_client.summarize_text(string_input) #TODO: portare fuori semantic_split_text!!
@@ -279,7 +285,7 @@ if is_logged_in == True:
                 st.write("Nessun file caricato.")
 
 
-        ########### Elaborazione testi ###########
+        ########### Text elaboration ###########
         st.title("Lettura handwritten")
         st.write("Usa la sezione sottostante e seleziona un'opzione dal menù a tendina per elaborare il testo.")
 
@@ -307,7 +313,7 @@ if is_logged_in == True:
                     res = langchain_client.draft_text(text_input)
                     st.write(res)
             
-                #Salva response
+                #Save response
                 with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
                     f.write(text_name)
                     f.write('\n\n')
