@@ -1,11 +1,16 @@
-FROM ubuntu:18.04
+FROM python:3.9-slim
 
-RUN apt-get update && apt install -y python3-pip
+WORKDIR /app
 
-COPY requirements.txt /src/requirements.txt
-RUN pip3 install --upgrade pip
-RUN pip3 install -r /src/requirements.txt
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
 
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
 COPY main.py /src/main.py
 
 CMD ["python3", "/src/main.py"]
