@@ -10,6 +10,8 @@ from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 import json
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 TOPICS = ['quantum computing', 'cloud computing']
 TELEGRAM_CHAT_ID=os.getenv('TELEGRAM_CHAT_ID')
@@ -54,13 +56,20 @@ output = chat_model(_input.to_messages())
 
 def on_chat_message(msg):
     content_type, chat_type, chat_id = telepot.glance(msg)
+
     if content_type == 'text':
         
         output = chat_model(_input.to_messages())
-        res=json.loads(output.content)
-        # response = bot.sendPhoto(TELEGRAM_GROUP_ID, f)
 
-        bot.sendMessage(chat_id, res)
+        # bot.sendMessage(chat_id, res)
+        bot.sendMessage(TELEGRAM_GROUP_ID, "ciao ecco qualche news dal tuo bot AI")
+        for title in json.loads(output.content):
+            bot.sendMessage(TELEGRAM_GROUP_ID, 
+                '''
+                Titolo: {}
+                News: {}
+                '''.format(title['title'], title['text'])
+            )
 
 bot = telepot.Bot(TELEGRAM_CHAT_ID)
 bot.message_loop(on_chat_message)
