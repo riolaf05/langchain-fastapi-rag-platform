@@ -63,6 +63,26 @@ jobs:
             docker push $DOCKER_LOGIN/rag-platform-server:<< pipeline.git.branch >>
 
 
+  build_telegramr:
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      - image: circleci/python:2.7.14
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build and push Docker image
+          command: |
+            cd src/telegram/
+            docker build -t $DOCKER_LOGIN/rag-platform-telegram:<< pipeline.git.branch >> -f Dockerfile .
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker push $DOCKER_LOGIN/rag-platform-telegram:<< pipeline.git.branch >>
+
+
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
@@ -71,3 +91,4 @@ workflows:
       - build_embedding
       - build_job
       - build_server
+      - build_telegram
