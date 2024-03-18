@@ -23,7 +23,6 @@ python-dotenv
 python-multipart
 httptools
 # uvloop
-boto3==1.28.17
 langchain==0.1.5
 langchain_experimental
 langchain_openai
