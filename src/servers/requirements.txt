@@ -48,7 +48,7 @@ func_timeout==4.3.5
 # torchaudio
 
 # llava-torch==1.1.1
-qdrant-client
+qdrant-client==1.8.0
 # git+https://github.com/openai/whisper.git
 # pytube
 

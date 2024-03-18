@@ -19,3 +19,4 @@ storage/
 **.sql
 cred/
 infrastructure/layers/*/python/
+**docker-run-istruzioni.txt
