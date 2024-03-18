@@ -16,7 +16,7 @@ typing-extensions==4.8.0
 urllib3==1.26.18
 uvicorn==0.22.0
 
-openai==0.28.1
+openai
 # PyPDF2~=2.0
 # numpy==1.26.0
 python-dotenv
