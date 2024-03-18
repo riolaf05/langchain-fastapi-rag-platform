@@ -50,6 +50,6 @@ func_timeout==4.3.5
 
 # llava-torch==1.1.1
 qdrant-client==1.7.3
-git+https://github.com/openai/whisper.git
+# git+https://github.com/openai/whisper.git
 # pytube
 
