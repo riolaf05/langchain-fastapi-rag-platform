@@ -1,37 +1,19 @@
+from fastapi import FastAPI
+from api.subscribe import router
+from config import SUBSCRIBER
 
-import os
-import logger
-from fastapi import FastAPI, status
-from utils import LangChainAI, QDrantDBManager, EmbeddingFunction
-
-app = FastAPI()
-langchain_client = LangChainAI()
-qdrantClient = QDrantDBManager(
-    url=os.getenv('QDRANT_URL'),
-    port=6333,
-    collection_name=os.getenv('QDRANT_COLLECTION'),
-    vector_size=1536,
-    embedding=EmbeddingFunction('openAI').embedder,
-    record_manager_url="sqlite:///record_manager_cache.sql"
+app = FastAPI(
+    title="SNS Subscriber service",
+    description="Receives messages from SNS",
 )
 
-@app.route('/rss_embed')
-def rss_embed(url):
+app.include_router(router, prefix="/subscribe")
 
-  splitted_docs = langchain_client.rss_loader(url)
-  qdrantClient.index_documents(splitted_docs)
-  logger.info("Transcription completed...")
-
-  return {"name": len(splitted_docs)}
-
-@app.route('/web_embed')
-def web_embed(url):
-
-  splitted_docs = langchain_client.webpage_loader(url)
-  qdrantClient.index_documents(splitted_docs)
-  logger.info("Transcription completed...")
-  
-  return {"name": len(splitted_docs)}
+@app.on_event("startup")
+def start_subscription():
+    SUBSCRIBER.create_subscription()
 
 
-app.run(host='0.0.0.0', port=8080)
+@app.on_event("shutdown")
+def end_subscription():
+    SUBSCRIBER.delete_subscription()

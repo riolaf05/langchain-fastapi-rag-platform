@@ -10,7 +10,7 @@
 
 module "ec2-asg" {
 
-  source = "git::https://github.com/riolaf05/terraform-modules//aws/autoscaling-elb?ref=v23.1.57"
+  source = "git::https://github.com/riolaf05/terraform-modules//aws/autoscaling-elb"
   project_info = {
     name   = "news4p-asg"
     prefix = "news4p-asg"
@@ -36,7 +36,7 @@ sudo service codedeploy-agent start
 sudo service codedeploy-agent status
    EOT
 
-  vpc-id     = module.network.vpc_id
+  vpc-id     = module.network.vpc-id
   public     = false
   ami        = "ami-0bba69335379e17f8"
   public_key = ""
