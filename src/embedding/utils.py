@@ -579,6 +579,35 @@ class LangChainAI:
         res=llmchain.run(text)+'\n\n'
         return res
     
+    def clear_text(self, text):
+        '''
+        Making the text more understandable by clearing unreadeable stuff,
+        using the chain StuffDocumentsChain:
+        this chain will take a list of documents, 
+        inserts them all into a prompt, and passes that prompt to an LLM
+        See: https://python.langchain.com/docs/use_cases/summarization
+        '''
+        docs = self.text_summarizer.split_text(text) 
+        max_chunk_len = len(max(docs, key = len))
+        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
+        docs = doc_splitter.create_documents(docs)
+
+        # Define prompt
+        prompt_template = """Rendi questo testo comprensibile:
+        "{text}"
+        Resto comprensibile:"""
+        prompt = PromptTemplate.from_template(prompt_template)
+
+        # Define LLM chain
+        llm_chain = LLMChain(llm=self.llm, prompt=prompt)
+
+        # Define StuffDocumentsChain
+        stuff_chain = StuffDocumentsChain(
+            llm_chain=llm_chain, document_variable_name="text"
+        )
+        res=stuff_chain.run(docs)
+        return res
+    
     def summarize_text(self, text):
         '''
         The map reduce documents chain first applies an LLM chain to each document individually (the Map step), 

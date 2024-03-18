@@ -89,6 +89,6 @@ workflows:
   docker-build-workflow:
     jobs:
       - build_embedding
-      - build_job
+      # - build_job
       - build_server
-      - build_telegram
+      # - build_telegram

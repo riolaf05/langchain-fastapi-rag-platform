@@ -166,6 +166,10 @@ if is_logged_in == True:
 
                         ## Summarize module
                         try:
+
+                            # Pulisci il testo
+                            clear_text = langchain_client.clear_text(data)
+
                             # Riassunto dei testi
                             summarized_data = langchain_client.summarize_text(data)
                         
@@ -181,8 +185,14 @@ if is_logged_in == True:
                         try:
                             ## Create file testo
                             with open(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), 'w', encoding='utf-8') as f:
+                                f.write("Testo audio: "+str(uploaded_mp3.name))
+                                f.write("\n")
+                                f.write("Testo completo: \n\n")
+                                f.write(clear_text)
+                                f.write("\n")
                                 f.write("Contenuo audio: \n\n")
                                 f.write(summarized_data)
+                                f.write("\n")
                                 f.write('Argomenti principali trattati: \n\n')
                                 f.write(bullet_point_text)
                                 
