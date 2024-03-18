@@ -4,8 +4,9 @@ EXPOSE 3000
 
 WORKDIR /app
 COPY requirements.txt ./
-COPY config/ ./
-COPY api/ ./
+COPY config/ ./config/
+COPY api/ ./api/
+COPY main.py ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
