@@ -30,7 +30,7 @@ requests==2.31.0
 trubrics[streamlit]
 
 # spacy==3.6.1
-tiktoken==0.5.1
+tiktoken
 mutagen==1.47.0
 func_timeout==4.3.5
 # s3fs==2023.9.2
