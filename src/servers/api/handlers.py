@@ -20,7 +20,12 @@ class SubscribeHandler:
 
             if kwargs['Type'] == "Notification":
                 logging.info("NOTIFICATION_RECEIVED")
-                # Do something interesting with the message. . .
+                
+                
+                ######### ADD LOGIC FOR LLM INFERENCE HERE
+
+                
+                #########
 
             elif kwargs['Type'] == "SubscriptionConfirmation":
                 SUBSCRIBER.confirm_subscription(kwargs["Token"])

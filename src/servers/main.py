@@ -1,13 +1,16 @@
 from fastapi import FastAPI
-from api.subscribe import router
+from api.views import router
 from config import SUBSCRIBER
+
 
 app = FastAPI(
     title="SNS Subscriber service",
     description="Receives messages from SNS",
+    redoc_url="/redoc"
 )
 
 app.include_router(router, prefix="/subscribe")
+
 
 @app.on_event("startup")
 def start_subscription():
