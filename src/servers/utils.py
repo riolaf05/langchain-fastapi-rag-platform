@@ -29,8 +29,8 @@ from langchain_community.document_loaders import WebBaseLoader
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
-import spacy
-import chromadb
+# import spacy
+# import chromadb
 import numpy as np
 import random
 import datetime
@@ -159,7 +159,7 @@ class AWSS3:
                 logging.error('File not found.')
                 return False
         
-        def download_file(self, bucket, object_name, file_name):
+        def download_file(self, object_name, file_name):
             """Download a file from an S3 bucket
     
             :param bucket: Bucket to download from
@@ -170,7 +170,7 @@ class AWSS3:
             """
             # Download the file
             try:
-                response = self.s3_client.download_file(bucket, object_name, file_name)
+                response = self.s3_client.download_file(self.bucket, object_name, file_name)
             except Exception as e:
                 logging.error(e)
                 return False
@@ -195,109 +195,109 @@ class AWSLambda:
             return False
 
 # Spacy NLP
-class TextSplitter:
+# class TextSplitter:
 
-    def __init__(self,
-                 chunk_size=2000,
-                 chunk_overlap=0
-                 ):
-        self.nlp = spacy.load("it_core_news_sm")
-        self.chunk_size=chunk_size
-        self.chunk_overlap=chunk_overlap
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            separators=["\n\n", "\n", " "],
-            chunk_size=self.chunk_size, 
-            chunk_overlap=self.chunk_overlap
-            )
+#     def __init__(self,
+#                  chunk_size=2000,
+#                  chunk_overlap=0
+#                  ):
+#         self.nlp = spacy.load("it_core_news_sm")
+#         self.chunk_size=chunk_size
+#         self.chunk_overlap=chunk_overlap
+#         self.text_splitter = RecursiveCharacterTextSplitter(
+#             separators=["\n\n", "\n", " "],
+#             chunk_size=self.chunk_size, 
+#             chunk_overlap=self.chunk_overlap
+#             )
 
-    def process(self, text):
-        doc = self.nlp(text)
-        sents = list(doc.sents)
-        vecs = np.stack([sent.vector / sent.vector_norm for sent in sents])
-        return sents, vecs
+#     def process(self, text):
+#         doc = self.nlp(text)
+#         sents = list(doc.sents)
+#         vecs = np.stack([sent.vector / sent.vector_norm for sent in sents])
+#         return sents, vecs
 
-    def cluster_text(self, sents, vecs, threshold):
-        clusters = [[0]]
-        for i in range(1, len(sents)):
-            if np.dot(vecs[i], vecs[i-1]) < threshold:
-                clusters.append([])
-            clusters[-1].append(i)
+#     def cluster_text(self, sents, vecs, threshold):
+#         clusters = [[0]]
+#         for i in range(1, len(sents)):
+#             if np.dot(vecs[i], vecs[i-1]) < threshold:
+#                 clusters.append([])
+#             clusters[-1].append(i)
         
-        return clusters
+#         return clusters
 
     
-    def clean_text(self, text):
-        # Add your text cleaning process here
-        return text
+#     def clean_text(self, text):
+#         # Add your text cleaning process here
+#         return text
         
-    def semantic_split_text(self, data, threshold=0.3):
-        '''
-        Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
-        '''
+#     def semantic_split_text(self, data, threshold=0.3):
+#         '''
+#         Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
+#         '''
     
 
-        # Initialize the clusters lengths list and final texts list
-        clusters_lens = []
-        final_texts = []
+#         # Initialize the clusters lengths list and final texts list
+#         clusters_lens = []
+#         final_texts = []
 
-        # Process the chunk
-        sents, vecs = self.process(data)
+#         # Process the chunk
+#         sents, vecs = self.process(data)
 
-        # Cluster the sentences
-        clusters = self.cluster_text(sents, vecs, threshold)
+#         # Cluster the sentences
+#         clusters = self.cluster_text(sents, vecs, threshold)
 
-        for cluster in clusters:
-            cluster_txt = self.clean_text(' '.join([sents[i].text for i in cluster]))
-            cluster_len = len(cluster_txt)
+#         for cluster in clusters:
+#             cluster_txt = self.clean_text(' '.join([sents[i].text for i in cluster]))
+#             cluster_len = len(cluster_txt)
             
-            # Check if the cluster is too short
-            if cluster_len < 60:
-                continue
+#             # Check if the cluster is too short
+#             if cluster_len < 60:
+#                 continue
             
-            # Check if the cluster is too long
-            elif cluster_len > 3000:
-                threshold = 0.6
-                sents_div, vecs_div = self.process(cluster_txt)
-                reclusters = self.cluster_text(sents_div, vecs_div, threshold)
+#             # Check if the cluster is too long
+#             elif cluster_len > 3000:
+#                 threshold = 0.6
+#                 sents_div, vecs_div = self.process(cluster_txt)
+#                 reclusters = self.cluster_text(sents_div, vecs_div, threshold)
                 
-                for subcluster in reclusters:
-                    div_txt = self.clean_text(' '.join([sents_div[i].text for i in subcluster]))
-                    div_len = len(div_txt)
+#                 for subcluster in reclusters:
+#                     div_txt = self.clean_text(' '.join([sents_div[i].text for i in subcluster]))
+#                     div_len = len(div_txt)
                     
-                    if div_len < 60 or div_len > 3000:
-                        continue
+#                     if div_len < 60 or div_len > 3000:
+#                         continue
                     
-                    clusters_lens.append(div_len)
-                    final_texts.append(div_txt)
+#                     clusters_lens.append(div_len)
+#                     final_texts.append(div_txt)
                     
-            else:
-                clusters_lens.append(cluster_len)
-                final_texts.append(cluster_txt)
+#             else:
+#                 clusters_lens.append(cluster_len)
+#                 final_texts.append(cluster_txt)
         
-        #converting to Langchain documents
-        ##lo posso fare anche con .create_documents !!
-        # final_docs=[]
-        # for doc in final_texts:
-        #     final_docs.append(Document(page_content=doc, metadata={"source": "local"}))
+#         #converting to Langchain documents
+#         ##lo posso fare anche con .create_documents !!
+#         # final_docs=[]
+#         # for doc in final_texts:
+#         #     final_docs.append(Document(page_content=doc, metadata={"source": "local"}))
             
-        return final_texts
+#         return final_texts
     
-    def create_langchain_documents(self, texts, metadata):
-        final_docs=[]
-        if type(texts) == str:
-            texts = [texts]
-        for doc in texts:
-            final_docs.append(Document(page_content=doc, metadata=metadata))
-        return final_docs
+#     def create_langchain_documents(self, texts, metadata):
+#         final_docs=[]
+#         if type(texts) == str:
+#             texts = [texts]
+#         for doc in texts:
+#             final_docs.append(Document(page_content=doc, metadata=metadata))
+#         return final_docs
     
-    #fixed split
-    def fixed_split(self, data):
-        '''
-        Takes Langchain documents as input
-        Returns splitted documents
-        '''
-        docs = self.text_splitter.split_documents(data)
-        return docs
+#     #fixed split
+#     def fixed_split(self, data):
+#         '''
+#         Takes Langchain documents as input
+#         Returns splitted documents
+#         '''
+#         docs = self.text_splitter.split_documents(data)
+#         return docs
 
 # DynamoDB
 class DynamoDBManager:
@@ -369,79 +369,79 @@ class EmbeddingFunction:
 
 
 # Chroma vector DB
-class ChromaDBManager:
+# class ChromaDBManager:
 
-    def __init__(self):
-        self.client = chromadb.PersistentClient(path=os.getenv("PERSIST_DIR_PATH"))
+#     def __init__(self):
+#         self.client = chromadb.PersistentClient(path=os.getenv("PERSIST_DIR_PATH"))
 
-    def get_or_create_collection(self, collection_name):
-        try:
-            collection = self.client.get_or_create_collection(name=collection_name)
-            print(f"Collection {collection_name} created successfully.")
-        except Exception as e:
-            print(f"Error creating collection {collection_name}: {e}")
-        return collection
+#     def get_or_create_collection(self, collection_name):
+#         try:
+#             collection = self.client.get_or_create_collection(name=collection_name)
+#             print(f"Collection {collection_name} created successfully.")
+#         except Exception as e:
+#             print(f"Error creating collection {collection_name}: {e}")
+#         return collection
     
-    def store_documents(self, collection, docs):
-        '''
-        Stores document to a collection
-        Gets Langchain documents in input.
-        By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
-        '''
-        #add documents to collection
-        collection_documents = [document.page_content for document in docs]
-        collection_metadata = [document.metadata for document in docs]
+#     def store_documents(self, collection, docs):
+#         '''
+#         Stores document to a collection
+#         Gets Langchain documents in input.
+#         By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
+#         '''
+#         #add documents to collection
+#         collection_documents = [document.page_content for document in docs]
+#         collection_metadata = [document.metadata for document in docs]
         
-        #get a str id for each collection id, starting from the current maximum id of the collection
-        collection_ids = [str(collection_id + 1) for collection_id in range(len(collection_documents))]
+#         #get a str id for each collection id, starting from the current maximum id of the collection
+#         collection_ids = [str(collection_id + 1) for collection_id in range(len(collection_documents))]
 
-        #filter metadata
-        self.replace_empty_medatada(collection_metadata)
+#         #filter metadata
+#         self.replace_empty_medatada(collection_metadata)
 
-        #add documents to collection
-        #this method creates the embedding and the colection 
-        #By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
-        collection.add(ids=collection_ids, documents=collection_documents, metadatas=collection_metadata)
+#         #add documents to collection
+#         #this method creates the embedding and the colection 
+#         #By default, Chroma uses the Sentence Transformers all-MiniLM-L6-v2 model to create embeddings. 
+#         collection.add(ids=collection_ids, documents=collection_documents, metadatas=collection_metadata)
 
-        #the collection are automatically stored since we're using a persistant client
-        return collection.count()
+#         #the collection are automatically stored since we're using a persistant client
+#         return collection.count()
     
         
-    def replace_empty_medatada(self, metadata_list):
-        #iter through metadata elements
-        for metadata in metadata_list:
-            #get index of metadata element
-            index = metadata_list.index(metadata)
-            #get metadata keys
-            metadata_keys = metadata.keys()
-            #iter through metadata keys
-            for key in metadata_keys:
-                #if key is empty
-                if metadata[key] == []:
-                    #replace it with None
-                    metadata_list[index][key] = ''
-                if type(metadata[key]) == datetime.datetime:
-                    #replace it str
-                    metadata_list[index][key] = str(metadata[key])
+#     def replace_empty_medatada(self, metadata_list):
+#         #iter through metadata elements
+#         for metadata in metadata_list:
+#             #get index of metadata element
+#             index = metadata_list.index(metadata)
+#             #get metadata keys
+#             metadata_keys = metadata.keys()
+#             #iter through metadata keys
+#             for key in metadata_keys:
+#                 #if key is empty
+#                 if metadata[key] == []:
+#                     #replace it with None
+#                     metadata_list[index][key] = ''
+#                 if type(metadata[key]) == datetime.datetime:
+#                     #replace it str
+#                     metadata_list[index][key] = str(metadata[key])
 
-    def retrieve_documents(collection, query, n_results=3):
-        '''
-        To run a similarity search, 
-        you can use the query method of the collection.
-        '''
-        llm_documents = []
+#     def retrieve_documents(collection, query, n_results=3):
+#         '''
+#         To run a similarity search, 
+#         you can use the query method of the collection.
+#         '''
+#         llm_documents = []
 
-        #similarity search <- #TODO compare with Kendra ? 
-        res=collection.query(query_texts=[query], n_results=n_results)
+#         #similarity search <- #TODO compare with Kendra ? 
+#         res=collection.query(query_texts=[query], n_results=n_results)
 
-        #create documents from collection
-        documents=[document for document in res['documents'][0]]
-        metadatas=[metadata for metadata in res['metadatas'][0]]
+#         #create documents from collection
+#         documents=[document for document in res['documents'][0]]
+#         metadatas=[metadata for metadata in res['metadatas'][0]]
         
-        for i in range(len(documents)):
-            doc=Document(page_content=documents[i], metadata=metadatas[i])
-            llm_documents.append(doc)
-        return llm_documents                  
+#         for i in range(len(documents)):
+#             doc=Document(page_content=documents[i], metadata=metadatas[i])
+#             llm_documents.append(doc)
+#         return llm_documents                  
 
 
 # Qdrant

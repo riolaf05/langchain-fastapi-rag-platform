@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
-
 @router.get("/healthcheck")
 async def health():
     response = JSONResponse(
@@ -16,7 +15,7 @@ async def health():
     return response
 
 
-@router.post("/receive-message")
+@router.post("/get-message")
 async def receive_view(request: ReceiverSerializer):
     """
     Receives a message from SNS.

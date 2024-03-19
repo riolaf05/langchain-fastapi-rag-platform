@@ -44,6 +44,7 @@ class SubscriptionManager(object):
         response = sns.subscribe(
             TopicArn=os.getenv("SNS_TOPIC"),
             Protocol="http",
+            #TODO FORCE application/json content type, default is plain/text and it does not works!!
             Endpoint=f'{os.getenv("SNS_ENDPOINT_SUBSCRIBE")}/{self.endpoint}'
         )
         print("SUBSCRIBE RESPONSE\n", response)
