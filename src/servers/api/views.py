@@ -15,7 +15,7 @@ async def health():
     return response
 
 
-@router.post("/get-message")
+@router.post("/receive-message")
 async def receive_view(request: ReceiverSerializer):
     """
     Receives a message from SNS.
