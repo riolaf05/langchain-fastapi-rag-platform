@@ -23,13 +23,22 @@ class SubscribeHandler:
             if kwargs['Type'] == "Notification":
                 logging.info("NOTIFICATION_RECEIVED")
 
-                ######### ADD LOGIC FOR LLM INFERENCE HERE
+                #downloading file..
                 json_item=json.loads(kwargs["Message"])
                 bucket_name=json_item['Records'][0]['s3']['bucket']['name']
-                filename=json_item['Records'][0]['s3']['object']['key']
+                file_key=json_item['Records'][0]['s3']['object']['key']
+
+                filename=file_key.split('/')[-1].replace('+', ' ')
+                save_path='/tmp/'+'/'.join(file_key.split('/')[:-1])
+                os.makedirs(save_path)
                 s3 = AWSS3(bucket_name) 
-                os.makedirs('/tmp/'+filename.split('/'))[:-1]
-                s3.download_file(filename.replace('+', ' '), '/tmp/'+str(filename))
+                s3.download_file(file_key, os.path.join(save_path, filename))
+                logging.info("File "+ filename+" downloaded!")
+
+                ######### ADD LOGIC FOR LLM INFERENCE HERE...
+
+                #summarize data
+                
                 
                 #########
 

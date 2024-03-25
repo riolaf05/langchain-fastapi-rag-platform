@@ -38,7 +38,7 @@ dynamodb_table_name = "chatgpt-summary-users"
 langchain_client = LangChainAI()
 s3_client=AWSS3('riassume-document-bucket')
 conn = st.experimental_connection('s3', type=FilesConnection)
-transcribe_s3client = AWSS3(S3_BUCKET)
+s3_client = AWSS3(S3_BUCKET)
 transcribe = AWSTranscribe(JOB_URI)
 textract = AWSTexttract()
 dynamo_manager = DynamoDBManager(os.getenv('AWS_REGION'), dynamodb_table_name)
@@ -147,31 +147,36 @@ if is_logged_in == True:
                 #         print('Error While Converting Audio')
                 #     uploaded_mp3.name = FinalFileName
                 with st.spinner('Elaborazione, per favore attendi...'):
-                    transcribe_s3client.upload_file(os.path.join(UPLOAD_FOLDER, uploaded_mp3.name),uploaded_mp3.name)
+                    s3_client.upload_file(os.path.join(UPLOAD_FOLDER, uploaded_mp3.name),uploaded_mp3.name)
                     audio = MP3(os.path.join(UPLOAD_FOLDER, uploaded_mp3.name))
                     duration = audio.info.length
                     os.remove(os.path.join(UPLOAD_FOLDER, uploaded_mp3.name))
 
-                    #Check user timeouts
+                    #Check user timeouts on DynamoDB
                     get_key = {"username": username}
                     if dynamo_manager.get_item(get_key)['Item']['time_limit'] < 0:
                         st.error("Non hai più minuti disponibili per la versione di prova! Contattaci per continuare ad usare l'applicazione.")
                         raise Exception("User out of time!")
                     else:
+
                         ## Speech-to-text
                         logger.info("Transcribing audio file...")
-
                         ## Speech-to-text module
                         data = speech_to_text(uploaded_mp3.name, 'it-IT')
+
+                        ## Split text and create documents
+                        splitted_text=textSplitter.semantic_split_text(data) #split semantically.
+                        splitted_docs = textSplitter.create_langchain_documents(splitted_text, {"source": "mp3"})
 
                         ## Summarize module
                         try:
 
                             # Pulisci il testo
-                            clear_text = langchain_client.clear_text(data)
+                            #FIXME: fix the clean text module!!!
+                            # clear_text = langchain_client.clean_text(splitted_docs)
 
                             # Riassunto dei testi
-                            summarized_data = langchain_client.summarize_text(data)
+                            summarized_data = langchain_client.summarize_text(splitted_docs)
                         
                             # Creazione lista argomenti
                             bullet_point_text = langchain_client.bullet_point_text(summarized_data)
@@ -179,7 +184,7 @@ if is_logged_in == True:
 
                         except Exception as e:
                             logger.error(e)
-                            st.error("Il file audio è troppo lungo, stiamo lavorandop er aumentare il limite, nel frattempo prova a dividere il file audio in più parti, ci scusiamo per l'inconveniente.")
+                            st.error("Il file audio è troppo lungo.")
                             # raise Exception("Summarize timeout!")
 
                         try:
@@ -188,8 +193,8 @@ if is_logged_in == True:
                                 f.write("Testo audio: "+str(uploaded_mp3.name))
                                 f.write("\n")
                                 f.write("Testo completo: \n\n")
-                                f.write(clear_text)
-                                f.write("\n")
+                                # f.write(clear_text)
+                                # f.write("\n")
                                 f.write("Contenuo audio: \n\n")
                                 f.write(summarized_data)
                                 f.write("\n")
@@ -197,13 +202,13 @@ if is_logged_in == True:
                                 f.write(bullet_point_text)
                                 
 
-                            ## Upload file testo
+                            ## Upload output text file
                             s3_client.upload_file(os.path.join(UPLOAD_FOLDER, 'tmp.txt'), username+'/'+"Argomenti audio "+str(uploaded_mp3.name)+".txt")
                             #Remove tmp file
                             os.remove(os.path.join(UPLOAD_FOLDER, 'tmp.txt')) 
                             st.success("Nota carica con successo!")
 
-                            ## Update user timeouts
+                            ## Update user timeouts on DynamoDB 
                             update_expression = "SET time_limit = :new_value"
                             expression_values = {":new_value": dynamo_manager.get_item(get_key)['Item']['time_limit']-Decimal(duration)}
                             dynamo_manager.update_item(get_key, update_expression, expression_values)
@@ -247,7 +252,7 @@ if is_logged_in == True:
                     #Save response
                     string_input=" ".join(text_input) #join the array in a single string (summarize_text vuole una string in input)
 
-                    #2. ELABORATION
+                    # if option_2:
                     if option_2:
                         #FIXME: DEBUGGARE IL METODO summarize_text, HA QUALCOSA CHE NON VA!!!
                         response = langchain_client.summarize_text(string_input) #TODO: portare fuori semantic_split_text!!

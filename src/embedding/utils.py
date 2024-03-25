@@ -26,6 +26,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.document_loaders import RSSFeedLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
+from langchain.chains import MapReduceDocumentsChain, ReduceDocumentsChain
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.request import urlopen
@@ -225,16 +226,15 @@ class TextSplitter:
         
         return clusters
 
-    
     def clean_text(self, text):
         # Add your text cleaning process here
+        #FIXME
         return text
-        
+      
     def semantic_split_text(self, data, threshold=0.3):
         '''
         Split thext using semantic clustering and spacy see https://getpocket.com/read/3906332851
         '''
-    
 
         # Initialize the clusters lengths list and final texts list
         clusters_lens = []
@@ -247,7 +247,7 @@ class TextSplitter:
         clusters = self.cluster_text(sents, vecs, threshold)
 
         for cluster in clusters:
-            cluster_txt = self.clean_text(' '.join([sents[i].text for i in cluster]))
+            cluster_txt = self.clean_text(' '.join([sents[i].text for i in cluster])) #FIXME
             cluster_len = len(cluster_txt)
             
             # Check if the cluster is too short
@@ -543,22 +543,15 @@ class LangChainAI:
 
     def __init__(self, 
                  model_name="gpt-3.5-turbo-16k",
-                 chatbot_model="gpt-3.5-turbo", 
-                 chunk_size=1000, 
-                 chunk_overlap=20
+                 chatbot_model="gpt-3.5-turbo"
                  ):
         
-        self.text_summarizer = TextSplitter()
-
         self.chatbot_model=chatbot_model
-        
         self.llm = ChatOpenAI(
           model_name=model_name, # default model
           temperature=0.9
           ) #temperature dictates how whacky the output should be
         self.chains = []
-        self.chunk_size=chunk_size,
-        self.chunk_overlap=chunk_overlap
 
     def split_docs(self, documents):
         '''
@@ -579,7 +572,7 @@ class LangChainAI:
         res=llmchain.run(text)+'\n\n'
         return res
     
-    def clear_text(self, text):
+    def clean_text(self, docs):
         '''
         Making the text more understandable by clearing unreadeable stuff,
         using the chain StuffDocumentsChain:
@@ -587,13 +580,11 @@ class LangChainAI:
         inserts them all into a prompt, and passes that prompt to an LLM
         See: https://python.langchain.com/docs/use_cases/summarization
         '''
-        docs = self.text_summarizer.split_text(text) 
-        max_chunk_len = len(max(docs, key = len))
-        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
-        docs = doc_splitter.create_documents(docs)
 
+        #FIXME!!
+     
         # Define prompt
-        prompt_template = """Rendi questo testo comprensibile:
+        prompt_template = """Rendi questo testo comprensibile mantenendo comunque il testo originale nella sua interezza:
         "{text}"
         Resto comprensibile:"""
         prompt = PromptTemplate.from_template(prompt_template)
@@ -608,8 +599,10 @@ class LangChainAI:
         res=stuff_chain.run(docs)
         return res
     
-    def summarize_text(self, text):
+    def summarize_text(self, docs):
         '''
+        Takes docs in input, produce a text in output
+
         The map reduce documents chain first applies an LLM chain to each document individually (the Map step), 
         treating the chain output as a new document. 
         It then passes all the new documents to a separate combine documents chain to get a single output (the Reduce step). 
@@ -617,16 +610,49 @@ class LangChainAI:
         the mapped documents to make sure that they fit in the combine documents chain 
         (which will often pass them to an LLM). This compression step is performed recursively if necessary.
         '''
-        chain = load_summarize_chain(self.llm, chain_type="map_reduce", verbose = True) 
-        docs = self.text_summarizer.split_text(text) 
-        max_chunk_len = len(max(docs, key = len))
-        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
-        docs = doc_splitter.create_documents(docs)
-        summarized_data = chain.run(docs)
-        translated_summarized_data = self.translate_text(summarized_data) #to resolve a bug in the summarize chain which returns the text in english
-        return translated_summarized_data
 
-    def bullet_point_text(self, text):
+        #map
+        map_template = """Di seguito un testo lungo diviso in documenti:
+        {docs}
+        Basansoti su questa lista di documenti, per favore crea un riassunto per ciascuno di essi. 
+        Riassunto:"""
+        map_prompt = PromptTemplate.from_template(map_template)
+        map_chain = LLMChain(llm=self.llm, prompt=map_prompt)
+        
+        # Reduce
+        reduce_template = """Di seguito una lista di riassunti:
+        {docs}
+        Prendi queste informazioni e sintetizzale in un riassunto finale e consolidato dei temi principali.
+        Risposta:"""
+        reduce_prompt = PromptTemplate.from_template(reduce_template)
+        reduce_chain = LLMChain(llm=self.llm, prompt=reduce_prompt)
+        
+        # Combines and iteratively reduces the mapped documents
+        combine_documents_chain = StuffDocumentsChain(llm_chain=reduce_chain, document_variable_name="docs")
+        reduce_documents_chain = ReduceDocumentsChain(
+            # This is final chain that is called.
+            combine_documents_chain=combine_documents_chain,
+            # If documents exceed context for `StuffDocumentsChain`
+            collapse_documents_chain=combine_documents_chain,
+            # The maximum number of tokens to group documents into.
+            token_max=4000,
+        )
+
+        # Combining documents by mapping a chain over them, then combining results
+        map_reduce_chain = MapReduceDocumentsChain(
+            # Map chain
+            llm_chain=map_chain,
+            # Reduce chain
+            reduce_documents_chain=reduce_documents_chain,
+            # The variable name in the llm_chain to put the documents in
+            document_variable_name="docs",
+            # Return the results of the map steps in the output
+            return_intermediate_steps=False,
+        )
+
+        return map_reduce_chain.run(docs)
+
+    def bullet_point_text(self, docs):
         '''
         Making the text more understandable by creating bullet points,
         using the chain StuffDocumentsChain:
@@ -634,26 +660,46 @@ class LangChainAI:
         inserts them all into a prompt, and passes that prompt to an LLM
         See: https://python.langchain.com/docs/use_cases/summarization
         '''
-        docs = self.text_summarizer.split_text(text) 
-        max_chunk_len = len(max(docs, key = len))
-        doc_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_len, chunk_overlap=20)
-        docs = doc_splitter.create_documents(docs)
-
-        # Define prompt
-        prompt_template = """Scrivi una lista di bullet point che sintetizzano il contenuto dei documenti:
-        "{text}"
-        Lista dei bullet points:"""
-        prompt = PromptTemplate.from_template(prompt_template)
-
-        # Define LLM chain
-        llm_chain = LLMChain(llm=self.llm, prompt=prompt)
-
-        # Define StuffDocumentsChain
-        stuff_chain = StuffDocumentsChain(
-            llm_chain=llm_chain, document_variable_name="text"
+        #map
+        map_template = """Di seguito un testo lungo diviso in documenti:
+        {docs}
+        Basansoti su questa lista di documenti, per favore crea un riassunto per ciascuno di essi. 
+        Riassunto:"""
+        map_prompt = PromptTemplate.from_template(map_template)
+        map_chain = LLMChain(llm=self.llm, prompt=map_prompt)
+        
+        # Reduce
+        reduce_template = """Di seguito una lista di riassunti:
+        {docs}
+        Prendi queste informazioni e sintetizzale in un elenco puntato finale che contiene i temi principali trattati.. 
+        Risposta:"""
+        reduce_prompt = PromptTemplate.from_template(reduce_template)
+        reduce_chain = LLMChain(llm=self.llm, prompt=reduce_prompt)
+        
+        # Combines and iteratively reduces the mapped documents
+        combine_documents_chain = StuffDocumentsChain(llm_chain=reduce_chain, document_variable_name="docs")
+        reduce_documents_chain = ReduceDocumentsChain(
+            # This is final chain that is called.
+            combine_documents_chain=combine_documents_chain,
+            # If documents exceed context for `StuffDocumentsChain`
+            collapse_documents_chain=combine_documents_chain,
+            # The maximum number of tokens to group documents into.
+            token_max=4000,
         )
-        res=stuff_chain.run(docs)
-        return res
+
+        # Combining documents by mapping a chain over them, then combining results
+        map_reduce_chain = MapReduceDocumentsChain(
+            # Map chain
+            llm_chain=map_chain,
+            # Reduce chain
+            reduce_documents_chain=reduce_documents_chain,
+            # The variable name in the llm_chain to put the documents in
+            document_variable_name="docs",
+            # Return the results of the map steps in the output
+            return_intermediate_steps=False,
+        )
+
+        return map_reduce_chain.run(docs)
     
     def paraphrase_text(self, text):
         '''

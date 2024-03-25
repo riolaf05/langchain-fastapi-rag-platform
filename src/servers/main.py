@@ -12,11 +12,11 @@ app = FastAPI(
 app.include_router(router, prefix="/subscribe")
 
 
-@app.on_event("startup")
-def start_subscription():
-    SUBSCRIBER.create_subscription()
+# @app.on_event("startup")
+# def start_subscription():
+#     SUBSCRIBER.create_subscription()
 
 
-@app.on_event("shutdown")
-def end_subscription():
-    SUBSCRIBER.delete_subscription()
+# @app.on_event("shutdown")
+# def end_subscription():
+#     SUBSCRIBER.delete_subscription()
