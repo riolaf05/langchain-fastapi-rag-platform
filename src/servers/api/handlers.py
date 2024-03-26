@@ -25,13 +25,14 @@ class SubscribeHandler:
 
             json_item=json.loads(kwargs["Message"])
             bucket_name=json_item['Records'][0]['s3']['bucket']['name']
-            file_key=json_item['Records'][0]['s3']['object']['key']
+            file_key=json_item['Records'][0]['s3']['object']['key'].replace('+', ' ')
 
             #downloading file..
-            filename=file_key.split('/')[-1].replace('+', ' ')
+            filename=file_key.split('/')[-1]
             save_path='/tmp/'+'/'.join(file_key.split('/')[:-1])
 
-            os.makedirs(save_path)
+            if not os.path.exists(save_path): 
+                os.makedirs(save_path) 
             s3 = AWSS3(bucket_name) 
             s3.download_file(file_key, os.path.join(save_path, filename))
             logging.info("File "+ filename+" downloaded!")
