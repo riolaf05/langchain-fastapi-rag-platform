@@ -16,43 +16,47 @@ class SubscribeHandler:
         :param kwargs: Request arguments
         :return:
         """
-        try:
-            self.logger.info(f"MESSAGE RECEIVED. TYPE: {kwargs['Type']}")
-            self.logger.info(kwargs["Message"])
+        # try:
+        self.logger.info(f"MESSAGE RECEIVED. TYPE: {kwargs['Type']}")
+        self.logger.info(kwargs["Message"])
 
-            if kwargs['Type'] == "Notification":
-                logging.info("NOTIFICATION_RECEIVED")
- 
-                json_item=json.loads(kwargs["Message"])
-                bucket_name=json_item['Records'][0]['s3']['bucket']['name']
-                file_key=json_item['Records'][0]['s3']['object']['key']
+        if kwargs['Type'] == "Notification":
+            logging.info("NOTIFICATION_RECEIVED")
 
-                #downloading file..
-                filename=file_key.split('/')[-1].replace('+', ' ')
-                save_path='/tmp/'+'/'.join(file_key.split('/')[:-1])
+            json_item=json.loads(kwargs["Message"])
+            bucket_name=json_item['Records'][0]['s3']['bucket']['name']
+            file_key=json_item['Records'][0]['s3']['object']['key']
 
-                os.makedirs(save_path)
-                s3 = AWSS3(bucket_name) 
-                s3.download_file(file_key, os.path.join(save_path, filename))
-                logging.info("File "+ filename+" downloaded!")
+            #downloading file..
+            filename=file_key.split('/')[-1].replace('+', ' ')
+            save_path='/tmp/'+'/'.join(file_key.split('/')[:-1])
 
-                if file_key.split('/')[-2] == "raw_documents":
-                    print("processing raw file...")
-                    #TODO 
+            os.makedirs(save_path)
+            s3 = AWSS3(bucket_name) 
+            s3.download_file(file_key, os.path.join(save_path, filename))
+            logging.info("File "+ filename+" downloaded!")
 
-                if file_key.split('/')[-2] == "processed_documents":
-                    print("processing processed file...")
-                    #TODO
+            if file_key.split('/')[-2] == "raw_documents":
+                print("processing raw file...")
+                #TODO 
 
-                #remove local file
-                    os.remove(os.path.join(save_path, filename))
-                    logging.info("File "+ filename+" removed!")
+            if file_key.split('/')[-2] == "processed_documents":
+                print("processing processed file...")
+                #TODO
 
-            elif kwargs['Type'] == "SubscriptionConfirmation":
-                SUBSCRIBER.confirm_subscription(kwargs["Token"])
+            else:
+                #add an exit strategy to avoid infinite loop!!
+                pass
 
-            return True
+            #remove local file
+                os.remove(os.path.join(save_path, filename))
+                logging.info("File "+ filename+" removed!")
 
-        except Exception as e:
-            self.logger.error("Subscriber fail! %s" % str(e))
-            return False
+        elif kwargs['Type'] == "SubscriptionConfirmation":
+            SUBSCRIBER.confirm_subscription(kwargs["Token"])
+
+        return True
+
+        # except Exception as e:
+        #     self.logger.error("Subscriber fail! %s" % str(e))
+        #     return False
