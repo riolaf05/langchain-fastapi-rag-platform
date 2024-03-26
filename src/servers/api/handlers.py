@@ -22,32 +22,31 @@ class SubscribeHandler:
 
             if kwargs['Type'] == "Notification":
                 logging.info("NOTIFICATION_RECEIVED")
-
-                
+ 
                 json_item=json.loads(kwargs["Message"])
                 bucket_name=json_item['Records'][0]['s3']['bucket']['name']
                 file_key=json_item['Records'][0]['s3']['object']['key']
 
                 #downloading file..
                 filename=file_key.split('/')[-1].replace('+', ' ')
-
-
                 save_path='/tmp/'+'/'.join(file_key.split('/')[:-1])
 
-                print(bucket_name, file_key, filename, save_path)
-                # os.makedirs(save_path)
-                # s3 = AWSS3(bucket_name) 
-                # s3.download_file(file_key, os.path.join(save_path, filename))
-                # logging.info("File "+ filename+" downloaded!")
+                os.makedirs(save_path)
+                s3 = AWSS3(bucket_name) 
+                s3.download_file(file_key, os.path.join(save_path, filename))
+                logging.info("File "+ filename+" downloaded!")
 
+                if file_key.split('/')[-2] == "raw_documents":
+                    print("processing raw file...")
+                    #TODO 
 
+                if file_key.split('/')[-2] == "processed_documents":
+                    print("processing processed file...")
+                    #TODO
 
-                ######### ADD LOGIC FOR LLM INFERENCE HERE...
-
-                #retrieve informations from file...(speech-to-text, video-to-text, etc.)
-                
-                
-                #########
+                #remove local file
+                    os.remove(os.path.join(save_path, filename))
+                    logging.info("File "+ filename+" removed!")
 
             elif kwargs['Type'] == "SubscriptionConfirmation":
                 SUBSCRIBER.confirm_subscription(kwargs["Token"])
