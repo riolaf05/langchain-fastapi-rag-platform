@@ -3,6 +3,10 @@ from config import SUBSCRIBER
 from utils import AWSS3
 import json
 import os
+from utils import QDrantDBManager, LangChainAI
+
+qdrantClient = QDrantDBManager()
+langChain = LangChainAI()
 
 class SubscribeHandler:
 
@@ -39,7 +43,8 @@ class SubscribeHandler:
 
             if file_key.split('/')[-2] == "raw_documents":
                 print("processing raw file...")
-                #TODO 
+                
+
 
             if file_key.split('/')[-2] == "processed_documents":
                 print("processing processed file...")
