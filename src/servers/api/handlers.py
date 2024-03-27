@@ -17,7 +17,7 @@ qdrantClient = QDrantDBManager(
 )
 langChain = LangChainAI()
 s3 = AWSS3(BUCKET_NAME) 
-stt = SpeechToText('whishper-base')
+stt = SpeechToText('transcribe')
 
 class SubscribeHandler:
 
@@ -32,7 +32,7 @@ class SubscribeHandler:
         :return:
         """
         try:
-            
+
             self.logger.info(f"MESSAGE RECEIVED. TYPE: {kwargs['Type']}")
             self.logger.info(kwargs["Message"])
 
