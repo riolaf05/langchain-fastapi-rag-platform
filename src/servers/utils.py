@@ -37,6 +37,8 @@ import random
 import datetime
 import whisper
 load_dotenv()
+
+TRANSCRIBE_BUCKET = 's3://newsp4-transcribe-docs-bucket'
      
 # AWS Texttract
 class AWSTexttract:
@@ -211,6 +213,12 @@ class SpeechToText:
             text = model.transcribe(file_path)
             return text['text']
         
+        elif self.model == 'transcribe':
+            transcribe = AWSTranscribe(TRANSCRIBE_BUCKET)
+            job_name=transcribe.generate_job_name()
+            text = transcribe.amazon_transcribe(TRANSCRIBE_BUCKET, job_name, file_path, 'it-IT')
+            return text
+            
         else:
             pass
             #TODO implement new models!!
