@@ -3,9 +3,16 @@ from config import SUBSCRIBER
 from utils import AWSS3
 import json
 import os
-from utils import QDrantDBManager, LangChainAI
+from utils import QDrantDBManager, LangChainAI, EmbeddingFunction
 
-qdrantClient = QDrantDBManager()
+qdrantClient = QDrantDBManager(
+    url=os.getenv('QDRANT_URL'),
+    port=6333,
+    collection_name=os.getenv('COLLECTION_NAME'),
+    vector_size=1536,
+    embedding=EmbeddingFunction('openAI').embedder,
+    record_manager_url="sqlite:///record_manager_cache.sql"
+)
 langChain = LangChainAI()
 
 class SubscribeHandler:
