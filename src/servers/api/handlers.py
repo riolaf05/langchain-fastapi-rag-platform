@@ -3,7 +3,7 @@ from config import SUBSCRIBER
 from utils import AWSS3
 import json
 import os
-from utils import QDrantDBManager, LangChainAI, EmbeddingFunction, TextSplitter
+from utils import QDrantDBManager, LangChainAI, EmbeddingFunction
 
 qdrantClient = QDrantDBManager(
     url=os.getenv('QDRANT_URL'),
