@@ -78,7 +78,7 @@ class AWSTranscribe:
             self.job_uri=job_uri
 
         def generate_job_name(self):
-            return "chatgpt_summary_"+str(time.time_ns())+"_"+str(random.randint(0,500))
+            return "sst_"+str(time.time_ns())+"_"+str(random.randint(0,500))
 
         def check_job_name(self, job_name):
             """
