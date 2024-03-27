@@ -35,7 +35,7 @@ from urllib.request import urlopen
 import numpy as np
 import random
 import datetime
-import whisper
+# import whisper
 load_dotenv()
 
 TRANSCRIBE_BUCKET = 's3://newsp4-transcribe-docs-bucket'
@@ -73,7 +73,7 @@ class AWSTexttract:
 class AWSTranscribe:
     
         def __init__(self, job_uri, region):
-            self.transcribe = boto3.client('transcribe', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region)
+            self.transcribe = boto3.client('transcribe', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'), region=region)
             self.job_verification = False
             self.job_uri=job_uri
 
@@ -208,12 +208,12 @@ class SpeechToText:
         Takes a file path in ingress and returns a textin output
         '''
 
-        if self.model == 'whisper-base':
-            model = whisper.load_model("base")
-            text = model.transcribe(file_path)
-            return text['text']
+        # if self.model == 'whisper-base':
+        #     model = whisper.load_model("base")
+        #     text = model.transcribe(file_path)
+        #     return text['text']
         
-        elif self.model == 'transcribe':
+        if self.model == 'transcribe':
             transcribe = AWSTranscribe(TRANSCRIBE_BUCKET, 'us-east-1')
             job_name=transcribe.generate_job_name()
             text = transcribe.amazon_transcribe(TRANSCRIBE_BUCKET, job_name, file_path, 'it-IT')
