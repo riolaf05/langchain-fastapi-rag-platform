@@ -40,6 +40,9 @@ class SubscribeHandler:
                 logging.info("NOTIFICATION_RECEIVED")
 
                 json_item=json.loads(kwargs["Message"])
+
+                print(json_item)
+                
                 file_key=json_item['Records'][0]['s3']['object']['key'].replace('+', ' ')
 
                 #downloading file..
