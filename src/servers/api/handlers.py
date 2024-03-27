@@ -51,6 +51,7 @@ class SubscribeHandler:
             s3.download_file(file_key, os.path.join(save_path, filename))
             logging.info("File "+ filename+" downloaded!")
 
+            #processing raw file..
             if file_key.split('/')[-2] == "raw_documents":
                 print("processing raw file...")
                 
@@ -70,7 +71,7 @@ class SubscribeHandler:
 
 
 
-
+            #second process in the pipeline (summary, clean, etc.)
             if file_key.split('/')[-2] == "processed_documents":
                 print("processing processed file...")
 
