@@ -1,43 +1,82 @@
-name: tldr-ci
-
+name: Build on DockerHub and Deploy to AWS
 on:
-  workflow_dispatch: 
   push:
-        
+    branches:
+      - develop
+      - main
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+  AWS_PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }}
+  CONTAINER: ${{ secrets.CONTAINER }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  QDRANT_URL: ${{ secrets.QDRANT_URL }}
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  JOB_URI: ${{ secrets.JOB_URI }}
+  SNS_ENDPOINT_SUBSCRIBE: ${{ secrets.SNS_ENDPOINT_SUBSCRIBE }}
+  SNS_TOPIC: ${{ secrets.SNS_TOPIC }}
+  AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+
 jobs:
-  generate_tag:
-    #see: https://medium.com/@schmidphilipp1995/set-up-a-ci-cd-pipeline-for-your-webapp-on-aws-with-github-actions-within-5-minutes-810b10749833
-    name: tldr ci
-    # The type of runner that the job will run on
+  build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
-    # Here we are configuring build matrix that allows you to perform certain operations on your code
-    # with different software/Operating system configurations.
-    # In our case, we are only running it for Node v12.*. but you can multiple entries in that array.
-    strategy:
-      matrix:
-        node-version: [12.x]
-      
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      # As you can see below we are using matrix.node-version => it means it will execute for all possible combinations
-      # provided matrix keys array(in our case only one kye => node-version)
-      - uses: actions/checkout@master
-
-      - name: Generate release tag
-        uses: amitsingh-007/next-release-tag@v2.2.0
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
         with:
-          github_token: ${{ secrets.REPO_GITHUB_TOKEN }}
-        if: github.ref_name == 'master'
-
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
         with:
-          tag_name: ${{ env.release_tag }}
-          release_name: Release ${{ env.release_tag }}
-        if: github.ref_name == 'master'
+          context: ./
+          push: true
+          dockerfile: ./Dockerfile
+          tags: ${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Login to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ env.DOCKERHUB_TOKEN }}
+    - name: Set permissions for private key
+      run: |
+        echo "${{ env.AWS_SSH_KEY }}" > key
+        chmod 600 key
+    - name: Stop running old container
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker stop ${{ env.CONTAINER}} || true'
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker rm ${{ env.CONTAINER}} || true'
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker system prune -af'
+    - name: Pull Docker image
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker pull ${{ env.IMAGE_NAME}}:${{ github.ref_name }}'
+    - name: Run new container
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker run -d -p 3000:3000 --restart unless-stopped --name ${{ env.CONTAINER}} \
+        -e OPENAI_API_KEY=${{ env.OPENAI_API_KEY }} \
+        -e AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+        -e AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+        -e AWS_S3_BUCKET_NAME=${{ env.AWS_S3_BUCKET_NAME }} \
+        -e AWS_REGION=${{ env.AWS_REGION }} \
+        -e QDRANT_URL=${{ env.QDRANT_URL }} \
+        -e S3_BUCKET=${{ env.S3_BUCKET }} \
+        -e JOB_URI=${{ env.JOB_URI }} \
+        -e SNS_ENDPOINT_SUBSCRIBE=${{ env.SNS_ENDPOINT_SUBSCRIBE }} \
+        -e SNS_TOPIC=${{ env.SNS_TOPIC }} \
+        ${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}'
