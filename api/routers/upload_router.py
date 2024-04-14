@@ -8,7 +8,7 @@ router = APIRouter()
 # Constants
 from config.environments import AWS_S3_BUCKET_NAME
 from config.constants import RAW_DOCUMENT_FOLDER
-ALLOWED_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "mp4", "mp3", "mov", "avi", "webm"]
+ALLOWED_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "mp4", "mp3", "mov", "avi", "webm", "pdf"]
 MAX_FILE_SIZE = 100 * 1024 * 1024
 
 # Check file type

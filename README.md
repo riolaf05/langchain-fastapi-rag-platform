@@ -32,15 +32,13 @@ cd certs
 mkcert llm.rioengineers.com "*.rioengineers.com" localhost 127.0.0.1 ::1
 ```
 
-### Setup with Docker
+### Setup 
 
-1. Copiare a man .env e config
+1. Avviare la VM usando il solito template 
 
-2. Run
+2. Lanciare la pipeline per il seup del microservizio
 
-```console
-sudo docker run --name riassume -it -d -p 80:8501 -v ./config.yaml:/app/config.yaml -e OPENAI_API_KEY=<env> -e AWS_ACCESS_KEY_ID=<env> -e AWS_SECRET_ACCESS_KEY=<env> -e AWS_REGION=us-east-1 --restart unless-stopped rio05docker/chatgpt-summary:0.0.10
-```
+3. Lanciare i terraform per installare bucket, sns topic ed sns subscription (confermati dall'endpoint installato al punto 2)
 
 ### References
 
