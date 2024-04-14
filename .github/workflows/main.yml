@@ -12,7 +12,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }} #with https:...
+  EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }} #without https:...
   CONTAINER: ${{ secrets.CONTAINER }}
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -80,4 +80,4 @@ jobs:
         -e JOB_URI=${{ env.JOB_URI }} \
         -e SNS_ENDPOINT_SUBSCRIBE=${{ env.SNS_ENDPOINT_SUBSCRIBE }} \
         -e SNS_TOPIC=${{ env.SNS_TOPIC }} \
-        ${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}'
+        ${{env.DOCKERHUB_USERNAME}}/${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}'
