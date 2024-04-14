@@ -4,24 +4,25 @@ on:
     branches:
       - develop
       - main
+      - summary
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
-  AWS_PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }}
+  EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }} #with https:...
   CONTAINER: ${{ secrets.CONTAINER }}
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   QDRANT_URL: ${{ secrets.QDRANT_URL }}
   S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
   JOB_URI: ${{ secrets.JOB_URI }}
-  SNS_ENDPOINT_SUBSCRIBE: ${{ secrets.SNS_ENDPOINT_SUBSCRIBE }}
-  SNS_TOPIC: ${{ secrets.SNS_TOPIC }}
+  SNS_ENDPOINT_SUBSCRIBE: ${{ secrets.SNS_ENDPOINT_SUBSCRIBE }}  #http://adress:port
+  SNS_TOPIC: ${{ secrets.SNS_TOPIC_ARN }} #arn
   AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+  AWS_TEXT_S3_BUCKET_NAME: ${{ secrets.AWS_TEXT_S3_BUCKET_NAME }}
 
 jobs:
   build:

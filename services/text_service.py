@@ -14,11 +14,11 @@ from config.environments import SUBS_ENDPOINT
 
 SUBSCRIBER = SubscriptionManager(SUBS_ENDPOINT)
 
-class SummarizationService:
+class TextService:
     def __init__(self):
         self.logger = logging.getLogger("subscriber")
         self.logger.setLevel(logging.INFO)
-        self.bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+        self.bucket_name = os.getenv('AWS_TEXT_S3_BUCKET_NAME')
         self.qdrant_client = QDrantDBManager(
             url=os.getenv('QDRANT_URL'),
             port=6333,
@@ -29,8 +29,6 @@ class SummarizationService:
         )
         self.lang_chain = LangChainAI()
         self.s3 = AWSS3(self.bucket_name)
-        self.stt = SpeechToText('gpt-3.5-turbo')
-        self.ocr = OCRText()
 
     def process(self, **kwargs):
         """
@@ -63,25 +61,21 @@ class SummarizationService:
             if file_key.split('/')[-2] == "raw_documents":
                 print("processing raw file...")
 
-                if filename.split('.')[-1] != "mp3" or filename.split('.')[-1] != "wav" or filename.split('.')[-1] != "mp4":
- 
-                    #speech-to-text
-                    #NOTE: this is a temporary solution, it will be replaced by an open source solution
-                    #since the tool I use (AWS Transcribe) here is really expensive!!
+                ###Process starts here..
 
-                    #TODO copy from one bucket to another!!
-                    transcribed_text = self.stt.transcribe(filename) # Added this line. (o-a-s) 6/4/2024        
+                if filename.split('.')[-1] != "pdf" or filename.split('.')[-1] != "txt":
+                    ocr_text=self.ocr.read_pdf(local_save_path)
                     text_file = filename.split('.')[:-1][0]+'.txt'
                     f = open(os.path.join('/tmp/', text_file), "w")
-                    f.write(transcribed_text) # Changed text variable to transcribed_text variable (o-a-s) 7/4/2024
+                    f.write(ocr_text) 
                     f.close()
 
-                    #load on S3
-                    self.s3.upload_file(os.path.join('/tmp/', text_file), os.path.join("news4p/processed_documents", filename))
+                #load on S3
+                self.s3.upload_file(os.path.join('/tmp/', text_file), os.path.join("news4p/processed_documents", filename))
 
-                    #delete local file
-                    os.remove(os.path.join(local_save_path, text_file))
-                    print("File "+ filename+" processed!")
+                #delete local file
+                os.remove(os.path.join(local_save_path, text_file))
+                print("File "+ filename+" processed!")
 
             #next steps of the pipeline..
             if file_key.split('/')[-2] == "processed_documents":
