@@ -4,7 +4,7 @@ from langchain.docstore.document import Document
 from PyPDF2 import PdfFileReader
 from PIL import Image
 import logging
-import textract
+# import textract
 
 class TextSplitter:
 
