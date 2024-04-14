@@ -1,4 +1,4 @@
-name: Build on DockerHub and Deploy to AWS
+name: Build on DockerHub and Deploy to AWS 
 on:
   push:
     branches:
@@ -43,7 +43,7 @@ jobs:
           context: ./
           push: true
           dockerfile: ./Dockerfile
-          tags: ${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}
+          tags: ${{env.DOCKERHUB_USERNAME}}/${{ secrets.IMAGE_NAME}}:${{ github.ref_name }}
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -66,7 +66,7 @@ jobs:
         ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker system prune -af'
     - name: Pull Docker image
       run: |
-        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker pull ${{ env.IMAGE_NAME}}:${{ github.ref_name }}'
+        ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker pull ${{env.DOCKERHUB_USERNAME}}/${{ env.IMAGE_NAME}}:${{ github.ref_name }}'
     - name: Run new container
       run: |
         ssh -o StrictHostKeyChecking=no -i key ubuntu@${{ env.EC2_ADDRESS}} 'sudo docker run -d -p 3000:3000 --restart unless-stopped --name ${{ env.CONTAINER}} \
