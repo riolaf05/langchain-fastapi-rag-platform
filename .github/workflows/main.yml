@@ -13,8 +13,8 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   EC2_ADDRESS: ${{ secrets.EC2_ADDRESS }} #without https:...
-  CONTAINER: ${{ secrets.CONTAINER }}
-  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+  CONTAINER: ${{ secrets.CONTAINER }} #name of the container in the vm..
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }} #without repo name prefix..
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   QDRANT_URL: ${{ secrets.QDRANT_URL }}
   S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
