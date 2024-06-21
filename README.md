@@ -1,47 +1,37 @@
+# Setup on GCP Cloud RUN 
 
-## Setup
-### Setup docker (Ubuntu 22.04) see https://docs.docker.com/engine/install/ubuntu/
+1. Create exports
 
 ```console
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Add the repository to Apt sources:
-echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+export PROJECT_ID=progetti-poc
+export APP=langchain-fastapi-rag-platform 
+export PORT=3000
+export REGION=europe-west8
+export BRANCH=main
+export TAG=${REGION}-docker.pkg.dev/${PROJECT_ID}/${APP}/${APP}:${BRANCH}
 ```
 
-### Git clone 
+2. Create Artifact Repo
+
 ```console
-git config --global credential.helper store
-git clone https://github.com/riolaf05/chatgpt-summmary
-sudo docker login
+gcloud artifacts repositories create langchain-fastapi-rag-platform --repository-format Docker --location europe-west8 --project progetti-poc
 ```
 
-### Create certificates
+3. Create Build
+
 ```console
-cd certs
-mkcert llm.rioengineers.com "*.rioengineers.com" localhost 127.0.0.1 ::1
+gcloud builds submit --tag  europe-west8-docker.pkg.dev/progetti-poc/langchain-fastapi-rag-platform/langchain-fastapi-rag-platform:main --project progetti-poc
 ```
 
-### Setup 
+4. Deploy 
 
-1. Avviare la VM usando il solito template 
+```console
+gcloud run deploy $APP --image $TAG --platform managed --region $REGION --port $PORT --allow-unauthenticated --env-vars-file=.env
+```
 
-2. Lanciare la pipeline per il seup del microservizio
+5. Clean 
 
-3. Lanciare i terraform per installare bucket, sns topic ed sns subscription (confermati dall'endpoint installato al punto 2)
-
-### References
-
-* [ChatGPT use cases](https://medium.com/mlearning-ai/10-must-try-chatgpt-prompts-that-will-change-the-way-you-study-3c7a96ce751d)
-
-* [Feedback collector](https://blog.streamlit.io/collecting-user-feedback-on-ml-in-streamlit/)
+```console
+gcloud run services delete $APP --region $REGION 
+gcloud run services list
+```

@@ -1,5 +1,6 @@
 venv/
 **.env
+**.env.gcloud
 *.jpg
 *.png
 **.terraform
