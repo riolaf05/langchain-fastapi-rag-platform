@@ -20,3 +20,6 @@ storage/
 cred/
 infrastructure/layers/*/python/
 **docker-run-istruzioni.txt
+**layer/
+**.env.url
+**.vscode
