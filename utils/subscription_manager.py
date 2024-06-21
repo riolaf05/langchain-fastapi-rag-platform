@@ -3,7 +3,14 @@ import boto3
 import logging
 from typing import Optional
 
-from config.environments import SNS_TOPIC, SNS_ENDPOINT_SUBSCRIBE, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+from config.environments import (
+    SNS_TOPIC,
+    SNS_ENDPOINT_SUBSCRIBE,
+    AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY,
+    AWS_REGION,
+)
+
 
 class SubscriptionManager(object):
     """
@@ -39,14 +46,14 @@ class SubscriptionManager(object):
             "sns",
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region_name=AWS_REGION
+            region_name=AWS_REGION,
         )
 
         response = sns.subscribe(
             TopicArn=SNS_TOPIC,
             Protocol="http",
-            #TODO FORCE application/json content type, default is plain/text and it does not works!!
-            Endpoint=f'{SNS_ENDPOINT_SUBSCRIBE}/{self.endpoint}'
+            # TODO FORCE application/json content type, default is plain/text and it does not works!!
+            Endpoint=f"{SNS_ENDPOINT_SUBSCRIBE}/{self.endpoint}",
         )
         print("SUBSCRIBE RESPONSE\n", response)
         self._subscription_arn = response["SubscriptionArn"]
@@ -62,7 +69,7 @@ class SubscriptionManager(object):
             "sns",
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region_name=AWS_REGION
+            region_name=AWS_REGION,
         )
         sns.unsubscribe(self.subscription_arn)
 
@@ -78,10 +85,7 @@ class SubscriptionManager(object):
             "sns",
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region_name=AWS_REGION
+            region_name=AWS_REGION,
         )
-        response = sns.confirm_subscription(
-            TopicArn=SNS_TOPIC,
-            Token=token
-        )
+        response = sns.confirm_subscription(TopicArn=SNS_TOPIC, Token=token)
         self._subscription_arn = response["SubscriptionArn"]

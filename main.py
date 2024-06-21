@@ -1,17 +1,23 @@
 from uvicorn import run
 from fastapi import FastAPI
-from api.routers import upload_router, summarization_router, asset_minting_router, embed_text
+from api.routers import (
+    upload_router,
+    summarization_router,
+    asset_minting_router,
+    embedding_router,
+)
 
 
 app = FastAPI(
-    title="SNS Subscriber service",
-    description="Receives messages from SNS",
-    redoc_url="/redoc"
+    title="Generic RAG platform",
+    description="Generic RAG platform",
+    redoc_url="/redoc",
 )
 
 # Include routers for API endpoints
-app.include_router(embed_text.router, prefix="/subscribe") #the prefix subscribe is used to mark the endpoint served by SNS 
-app.include_router(asset_minting_router.router, prefix="/subscribe")
+# app.include_router(summarization_router.router, prefix="/subscribe")  # the prefix subscribe is used to mark the endpoint served by SNS
+# app.include_router(asset_minting_router.router, prefix="/subscribe")
+app.include_router(embedding_router.router, prefix="/subscribe")
 app.include_router(upload_router.router)
 
 
